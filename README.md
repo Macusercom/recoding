@@ -69,6 +69,17 @@ Then open [http://localhost:8000](http://localhost:8000) in your browser.
 - Settings and language are kept in `localStorage` — no cookies
 
 
+## Images
+
+<p align="center">
+  <img src="images/image1.png" alt="ReCoding start screen" width="70%"><br>
+  <sub><b>Start</b> — drop a file and pick a format</sub>
+</p>
+
+<!-- Room for more: add images/image2.png (output settings) and images/image3.png
+     (converted files side by side) and lay the three out in a table when they exist. -->
+
+
 ## License
 
 ReCoding is licensed under the **GNU General Public License v3.0 or later** — see [LICENSE](LICENSE).
@@ -78,25 +89,3 @@ It bundles `ffmpeg-core.wasm`, a build of FFmpeg n5.1.4 that is itself under the
 Full attribution, license texts and the corresponding-source links are in
 [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md) and on the site's own
 [licenses page](docs/licenses.html).
-
-
-<!-- Screenshots: drop image1–3.png into images/ and uncomment.
-## Images
-
-<table>
-  <tr>
-    <td width="33%" align="center">
-      <img src="images/image1.png" alt="Start screen" width="100%"><br>
-      <sub><b>Start</b> — drop a file and pick a format</sub>
-    </td>
-    <td width="33%" align="center">
-      <img src="images/image2.png" alt="Output settings" width="100%"><br>
-      <sub><b>Settings</b> — every option the codec actually supports</sub>
-    </td>
-    <td width="33%" align="center">
-      <img src="images/image3.png" alt="Converted files" width="100%"><br>
-      <sub><b>Results</b> — versions side by side, with playback and download</sub>
-    </td>
-  </tr>
-</table>
--->
