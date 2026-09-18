@@ -3,8 +3,8 @@
 import { msg, initLang, onLangChange } from './i18n.js';
 import * as engine from './engine.js';
 import {
-  CODECS, CODEC_ORDER, DEFAULT_OPTIONS, KEEP,
-  buildArgs, resolve, describe, outputName, khz,
+  CODECS, CODEC_ORDER, DEFAULT_OPTIONS, KEEP, FLOAT,
+  buildArgs, resolve, describe, depthLabel, outputName, khz,
 } from './codecs.js';
 
 const $ = (id) => document.getElementById(id);
@@ -275,7 +275,7 @@ function renderSettings() {
   };
   if (!codec.rateModes) {
     grid.append(field(msg('fieldRateMode'), select([{ value: '', label: '—' }], '', () => {}), {
-      disabledReason: msg('naBitrate'),
+      disabledReason: msg(codec.bitrateNote),
     }));
   } else {
     grid.append(field(
@@ -294,7 +294,7 @@ function renderSettings() {
   // --- bitrate, or the VBR quality that replaces it ---
   if (!codec.rateModes) {
     grid.append(field(msg('fieldBitrate'), select([{ value: '', label: '—' }], '', () => {}), {
-      disabledReason: msg('naBitrate'),
+      disabledReason: msg(codec.bitrateNote),
     }));
   } else if (settings.rateMode === 'vbr' && codec.vbrRange) {
     const { min, max } = codec.vbrRange;
@@ -349,9 +349,9 @@ function renderSettings() {
     grid.append(field(
       msg('fieldBitDepth'),
       select(
-        [{ value: KEEP, label: msg('keep') }, ...codec.bitDepths.map((d) => ({ value: d, label: msg('chipBitDepth', [d]) }))],
+        [{ value: KEEP, label: msg('keep') }, ...codec.bitDepths.map((d) => ({ value: d, label: depthLabel(d, msg) }))],
         settings.bitDepth,
-        (v) => update('bitDepth', v === KEEP ? KEEP : Number(v)),
+        (v) => update('bitDepth', v === KEEP || v === FLOAT ? v : Number(v)),
       ),
     ));
   } else {
@@ -372,7 +372,7 @@ function renderSettings() {
     (v) => update('channels', v),
   );
   grid.append(field(msg('fieldChannels'), channelControl,
-    codec.joint ? {} : { info: msg('naJoint') }));
+    codec.joint ? {} : { info: msg(codec.jointNote) }));
 
   // --- codec extras ---
   if (codec.id === 'mp3') {
@@ -429,8 +429,8 @@ function renderSettings() {
   }
 
   const note = $('codec-note');
-  note.hidden = codec.id !== 'aac';
-  if (codec.id === 'aac') note.textContent = msg('heAacNote');
+  note.hidden = !codec.note;
+  if (codec.note) note.textContent = msg(codec.note);
 }
 
 // ---------------------------------------------------------------------------
@@ -525,9 +525,50 @@ function canPlay(codec) {
     aac: 'audio/mp4; codecs="mp4a.40.2"',
     opus: 'audio/ogg; codecs=opus',
     flac: 'audio/flac',
+    alac: 'audio/mp4; codecs=alac',
+    wav: 'audio/wav',
+    aiff: 'audio/aiff',
   }[codec.id];
   return document.createElement('audio').canPlayType(probe) !== '';
 }
+
+// One <audio> element per result, kept across renders. renderResults() rebuilds
+// the whole list whenever anything changes, and a freshly built element would
+// restart playback from zero every time another conversion lands. The same node
+// re-appended within one task keeps playing — the spec only pauses an element
+// that is still detached once the browser reaches a stable state.
+const players = new Map();
+
+function playerFor(r) {
+  let audio = players.get(r.id);
+  if (audio) return audio;
+
+  audio = document.createElement('audio');
+  audio.controls = true;
+  audio.preload = 'metadata';
+  audio.src = r.url;
+  // canPlayType answers for the container and the codec, not for this exact
+  // stream: a browser that claims audio/wav may still refuse a 32-bit float
+  // one. The promise is a download link, never a dead player, so a decode
+  // failure demotes the result to the same fallback.
+  audio.addEventListener('error', () => {
+    r.playable = false;
+    players.delete(r.id);
+    renderResults();
+  }, { once: true });
+
+  players.set(r.id, audio);
+  return audio;
+}
+
+// Comparing two encodes means listening to one, then the other — never both at
+// once, and the source player counts too. `play` does not bubble, so this has
+// to listen during the capture phase.
+document.addEventListener('play', (e) => {
+  for (const el of document.querySelectorAll('audio')) {
+    if (el !== e.target && !el.paused) el.pause();
+  }
+}, true);
 
 function renderResults() {
   const list = $('results-list');
@@ -591,12 +632,8 @@ function renderResults() {
     }
 
     // --- playback ---
-    if (canPlay(r.codec)) {
-      const audio = document.createElement('audio');
-      audio.controls = true;
-      audio.preload = 'metadata';
-      audio.src = r.url;
-      box.append(audio);
+    if (r.playable !== false && canPlay(r.codec)) {
+      box.append(playerFor(r));
     } else {
       const p = document.createElement('p');
       p.className = 'no-playback';
@@ -632,12 +669,14 @@ function renderResults() {
 function removeResult(id) {
   const hit = results.find((r) => r.id === id);
   if (hit) URL.revokeObjectURL(hit.url);
+  players.delete(id);
   results = results.filter((r) => r.id !== id);
   renderResults();
 }
 
 $('btn-clear-results').addEventListener('click', () => {
   for (const r of results) URL.revokeObjectURL(r.url);
+  players.clear();
   results = [];
   // Anything still queued is abandoned too; the job running right now has no
   // cancellation point, so it finishes and lands in the emptied list.

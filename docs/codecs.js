@@ -10,11 +10,17 @@
 //   - libopus rejects both: over 256 kbps *per channel* is an error, not a
 //     clamp, so a mono file cannot take the 510 kbps a stereo one accepts.
 //   - The native aac encoder clamps everything and never errors.
+//   - PCM, ALAC and FLAC take any sample rate at all — 37.8 kHz encodes fine —
+//     so substituting a listed rate for an unusual source rate would resample
+//     for nothing. Those codecs carry `anyRate` and their list is a menu.
 //
 // So the form never offers an invalid combination in the first place, and
 // resolve() re-checks whatever survives from stored settings.
 
 export const KEEP = 'keep';
+// 32-bit float is a bit depth like any other in the form, but it is not a
+// number, so it travels as its own token rather than as 32.
+export const FLOAT = 'float';
 
 // MPEG-1 Layer III (32/44.1/48 kHz) and MPEG-2 / 2.5 (everything lower) have
 // different legal bitrate tables. LAME picks the layer from the sample rate.
@@ -23,6 +29,16 @@ const MP3_MPEG25 = [8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
 
 const AAC_BITRATES = [8, 16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 224, 256, 288, 320];
 const OPUS_BITRATES = [6, 8, 12, 16, 24, 32, 48, 64, 80, 96, 128, 160, 192, 256, 320, 384, 448, 512];
+
+// WAV stores 8-bit samples unsigned and everything wider signed little-endian;
+// AIFF is the mirror image — signed 8-bit, big-endian. That is the whole
+// difference between the two containers, so they share one depth list.
+const PCM_DEPTHS = [8, 16, 24, 32, FLOAT];
+const PCM_LE = { 8: 'pcm_u8', 16: 'pcm_s16le', 24: 'pcm_s24le', 32: 'pcm_s32le', [FLOAT]: 'pcm_f32le' };
+const PCM_BE = { 8: 'pcm_s8', 16: 'pcm_s16be', 24: 'pcm_s24be', 32: 'pcm_s32be', [FLOAT]: 'pcm_f32be' };
+
+// The rates worth offering for the codecs that accept anything.
+const LOSSLESS_RATES = [8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000, 88200, 96000, 176400, 192000];
 
 const bool = (v) => (v ? '1' : '0');
 
@@ -72,6 +88,7 @@ export const CODECS = {
     vbrRange: null,
     bitDepths: null,
     joint: true,
+    note: 'heAacNote',
     bitrates() {
       return AAC_BITRATES;
     },
@@ -106,6 +123,7 @@ export const CODECS = {
     bitDepths: null,
     // libopus decides mid/side per frame on its own and exposes no switch.
     joint: false,
+    jointNote: 'naJointOpus',
     // Hard ceiling of 256 kbps per channel: at 257k mono libopus refuses to
     // open, so this has to track the resolved channel count, not just the rate.
     bitrates(sampleRate, channels) {
@@ -127,13 +145,15 @@ export const CODECS = {
     ext: 'flac',
     mime: 'audio/flac',
     encoder: 'flac',
-    sampleRates: [8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000, 88200, 96000, 176400, 192000],
+    sampleRates: LOSSLESS_RATES,
+    anyRate: true,
     rateModes: null, // lossless — compression level instead of a bitrate
     defaultBitrate: null,
     vbrRange: null,
     // -sample_fmt s32 yields a 24-bit FLAC (bits_per_raw_sample=24), not 32.
     bitDepths: [16, 24],
     joint: true,
+    bitrateNote: 'naBitrateFlac',
     bitrates() {
       return [];
     },
@@ -144,9 +164,98 @@ export const CODECS = {
       return a;
     },
   },
+
+  alac: {
+    id: 'alac',
+    label: 'ALAC',
+    ext: 'm4a',
+    mime: 'audio/mp4',
+    encoder: 'alac',
+    sampleRates: LOSSLESS_RATES,
+    anyRate: true,
+    rateModes: null, // lossless
+    defaultBitrate: null,
+    vbrRange: null,
+    // The encoder takes s16p and s32p and nothing else — plain s16 is rejected
+    // outright, planar is not optional here. s32p yields a 24-bit ALAC
+    // (bits_per_raw_sample=24), exactly as s32 yields a 24-bit FLAC.
+    bitDepths: [16, 24],
+    // ALAC codes the stereo pair with its own per-frame decision.
+    joint: false,
+    jointNote: 'naJointAlac',
+    bitrateNote: 'naBitrateAlac',
+    note: 'alacNote',
+    // min/max_prediction_order are the only knobs the encoder exposes, and
+    // measuring them settled it: across 1–30 the output moved under 2 %, and
+    // not even monotonically — a higher order produced slightly *larger* files.
+    // A dial that does nothing is worse than no dial, so there is none.
+    bitrates() {
+      return [];
+    },
+    args(o, r) {
+      const a = ['-c:a', 'alac', '-sample_fmt', r.bitDepth === 24 ? 's32p' : 's16p'];
+      // Same reason as AAC: without this the moov atom lands at the end and the
+      // <audio> element cannot start until the whole blob is read.
+      a.push('-movflags', '+faststart');
+      return a;
+    },
+  },
+
+  wav: {
+    id: 'wav',
+    label: 'WAV',
+    ext: 'wav',
+    mime: 'audio/wav',
+    encoder: 'pcm',
+    sampleRates: LOSSLESS_RATES,
+    anyRate: true,
+    rateModes: null, // uncompressed — the bitrate is arithmetic, not a setting
+    defaultBitrate: null,
+    vbrRange: null,
+    bitDepths: PCM_DEPTHS,
+    // Every channel is stored in full, side by side; there is nothing to join.
+    joint: false,
+    jointNote: 'naJointPcm',
+    bitrateNote: 'naBitratePcm',
+    note: 'wavNote',
+    bitrates() {
+      return [];
+    },
+    args(o, r) {
+      // The encoder *is* the bit depth: pcm_s24le needs no -sample_fmt, and
+      // ffmpeg picks the matching internal format itself.
+      return ['-c:a', PCM_LE[r.bitDepth]];
+    },
+  },
+
+  aiff: {
+    id: 'aiff',
+    label: 'AIFF',
+    ext: 'aiff',
+    mime: 'audio/aiff',
+    encoder: 'pcm',
+    sampleRates: LOSSLESS_RATES,
+    anyRate: true,
+    rateModes: null,
+    defaultBitrate: null,
+    vbrRange: null,
+    bitDepths: PCM_DEPTHS,
+    joint: false,
+    jointNote: 'naJointPcm',
+    bitrateNote: 'naBitratePcm',
+    note: 'aiffNote',
+    bitrates() {
+      return [];
+    },
+    args(o, r) {
+      // 32-bit float makes this an AIFF-C rather than a plain AIFF; ffmpeg
+      // writes the right one on its own.
+      return ['-c:a', PCM_BE[r.bitDepth]];
+    },
+  },
 };
 
-export const CODEC_ORDER = ['mp3', 'aac', 'opus', 'flac'];
+export const CODEC_ORDER = ['mp3', 'aac', 'opus', 'flac', 'alac', 'wav', 'aiff'];
 
 export const DEFAULT_OPTIONS = {
   codec: 'mp3',
@@ -169,6 +278,18 @@ export const DEFAULT_OPTIONS = {
 
 const nearest = (want, list) =>
   list.reduce((best, v) => (Math.abs(v - want) < Math.abs(best - want) ? v : best), list[0]);
+
+/**
+ * What "Keep original" means for bit depth: the narrowest offered integer depth
+ * that still holds the source without truncating it, or the widest on offer if
+ * none does. Float is never chosen implicitly — nothing arrives as float that
+ * did not ask for it.
+ */
+function keepDepth(srcBits, offered) {
+  const ints = offered.filter((d) => typeof d === 'number');
+  if (!srcBits) return ints.includes(16) ? 16 : ints[0];
+  return ints.find((d) => d >= srcBits) ?? ints[ints.length - 1];
+}
 
 /**
  * Turns the form's options plus the probed source into concrete values, and
@@ -201,7 +322,10 @@ export function resolve(opts, source) {
 
   // ---- sample rate ----
   let sampleRate = opts.sampleRate === KEEP ? source?.sampleRate || 48000 : Number(opts.sampleRate);
-  if (!codec.sampleRates.includes(sampleRate)) {
+  // For an `anyRate` codec the list is a menu, not a limit: a 37.8 kHz source
+  // encodes to WAV, ALAC or FLAC unchanged, and resampling it to the nearest
+  // listed rate would be a silent loss dressed up as a substitution.
+  if (!codec.anyRate && !codec.sampleRates.includes(sampleRate)) {
     const fallback = nearest(sampleRate, codec.sampleRates);
     // A codec with exactly one legal rate never offered a choice to override,
     // so reporting a substitution there would just be noise.
@@ -216,12 +340,10 @@ export function resolve(opts, source) {
   // ---- bit depth ----
   let bitDepth = null;
   if (codec.bitDepths) {
-    if (opts.bitDepth === KEEP) {
-      const src = source?.bitDepth;
-      bitDepth = src && src > 16 ? 24 : 16;
-    } else {
-      bitDepth = Number(opts.bitDepth);
-    }
+    // A depth carried over from another codec — 32-bit float, then FLAC — is
+    // simply not in this list, and falls back to what "Keep" would have picked.
+    const want = opts.bitDepth === FLOAT ? FLOAT : Number(opts.bitDepth);
+    bitDepth = codec.bitDepths.includes(want) ? want : keepDepth(source?.bitDepth, codec.bitDepths);
   }
 
   // ---- bitrate ----
@@ -266,6 +388,13 @@ export function buildArgs(opts, source, inputPath, outputPath) {
 // Display
 // ---------------------------------------------------------------------------
 
+/** "24-bit" or "32-bit float", for a form option and for a result chip alike. */
+export function depthLabel(depth, msg) {
+  return depth === FLOAT ? msg('chipBitDepthFloat') : msg('chipBitDepth', [String(depth)]);
+}
+
+const depthTag = (depth) => (depth === FLOAT ? '32bitfloat' : `${depth}bit`);
+
 export function khz(hz) {
   if (!hz) return '–';
   const v = hz / 1000;
@@ -279,7 +408,10 @@ export function describe(opts, resolved, msg) {
 
   if (codec.id === 'flac') {
     chips.push(msg('chipCompression', [String(opts.flacCompression)]));
-    chips.push(msg('chipBitDepth', [String(resolved.bitDepth)]));
+    chips.push(depthLabel(resolved.bitDepth, msg));
+  } else if (!codec.rateModes) {
+    // Lossless or uncompressed: depth is the only size dial there is.
+    chips.push(depthLabel(resolved.bitDepth, msg));
   } else if (resolved.rateMode === 'vbr') {
     chips.push(`VBR V${opts.quality}`);
   } else {
@@ -304,7 +436,8 @@ export function outputName(sourceName, opts, resolved) {
   const stem = dot > 0 ? sourceName.slice(0, dot) : sourceName;
   const { codec } = resolved;
   const parts = [codec.id];
-  if (codec.id === 'flac') parts.push(`${resolved.bitDepth}bit`, `c${opts.flacCompression}`);
+  if (codec.id === 'flac') parts.push(depthTag(resolved.bitDepth), `c${opts.flacCompression}`);
+  else if (!codec.rateModes) parts.push(depthTag(resolved.bitDepth));
   else if (resolved.rateMode === 'vbr') parts.push(`v${opts.quality}`);
   else parts.push(`${resolved.bitrate}k`);
   parts.push(`${Math.round(resolved.sampleRate / 100) / 10}k`);

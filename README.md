@@ -1,7 +1,7 @@
 <img src="docs/icon.svg" alt="ReCoding icon" height="100">
 
 # ReCoding – Audio Converter (Web)
-A privacy-first web app that converts audio to MP3, AAC, Opus or FLAC. Pick a file, choose a codec and its settings, and convert it as many times as you like — every version is kept side by side so you can play them, compare their size and download the one you want. Everything runs locally in your browser: no upload, no account, no tracking.
+A privacy-first web app that converts audio to MP3, AAC, Opus, FLAC, ALAC, WAV or AIFF. Pick a file, choose a codec and its settings, and convert it as many times as you like — every version is kept side by side so you can play them, compare their size and download the one you want. Everything runs locally in your browser: no upload, no account, no tracking.
 
 🌐 **[Try it live → macusercom.github.io/recoding](https://macusercom.github.io/recoding/)**
 
@@ -13,13 +13,17 @@ A privacy-first web app that converts audio to MP3, AAC, Opus or FLAC. Pick a fi
 - **AAC-LC**: 8–320 kbps, 7.35–96 kHz, forced M/S stereo, two-loop or fast coder
 - **Opus** (libopus): 6–512 kbps, VBR / constrained VBR / CBR, speech or music tuning, encoding effort 0–10
 - **FLAC**: lossless, compression level 0–12, 16- or 24-bit, mid/side or independent stereo
+- **ALAC**: lossless, 16- or 24-bit, in an MP4 container Apple software plays natively
+- **WAV** and **AIFF**: uncompressed PCM, 8/16/24/32-bit and 32-bit float, any sample rate
 - Only valid combinations are offered — the bitrate list follows the sample rate and channel count, because the legal range does too
+- The bitrate is the rate of the whole file, not of one channel, so mono at a given number gives each channel twice what stereo does — the field says so
 - Options a codec genuinely cannot do are disabled and say why, instead of silently doing something else
 - Convert the same file over and over: results accumulate, nothing is overwritten
 - Every result shows the exact settings it was made with, its size against the source, a player and a download link
 - The exact FFmpeg command is shown per result, so nothing about the conversion is a black box
 - Queue several conversions while one is running; remove one result or clear them all
-- Formats the browser cannot play fall back to a download link and a note, never a dead player
+- Formats the browser cannot play fall back to a download link and a note, never a dead player — including a stream whose container the browser accepts but whose bit depth it cannot decode
+- Only one file plays at a time: starting a player pauses every other one, so two encodes can never overlap
 - German and English UI, follows your browser language
 - No audio or data ever leaves your machine
 

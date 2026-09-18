@@ -57,6 +57,9 @@ own license as documented by its upstream project.
 | AAC-LC | FFmpeg native `aac` | LGPL-2.1-or-later |
 | Opus | `libopus` | BSD-3-Clause |
 | FLAC | FFmpeg native `flac` | LGPL-2.1-or-later |
+| ALAC | FFmpeg native `alac` | LGPL-2.1-or-later |
+| WAV | FFmpeg native `pcm_u8`, `pcm_s16le`, `pcm_s24le`, `pcm_s32le`, `pcm_f32le` | LGPL-2.1-or-later |
+| AIFF | FFmpeg native `pcm_s8`, `pcm_s16be`, `pcm_s24be`, `pcm_s32be`, `pcm_f32be` | LGPL-2.1-or-later |
 
 ### Why there is no HE-AAC
 

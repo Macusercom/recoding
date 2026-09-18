@@ -8,7 +8,7 @@ const LANG_KEY = 'recoding-lang';
 
 const EN = {
   appName: 'ReCoding',
-  tagline: 'Convert audio to MP3, AAC, Opus or FLAC — right in your browser.',
+  tagline: 'Convert audio to MP3, AAC, Opus, FLAC, ALAC, WAV or AIFF — right in your browser.',
   privacyNote: 'Your files never leave your device. No upload, no account, no tracking.',
 
   // ---- engine ----
@@ -72,13 +72,20 @@ const EN = {
   qualitySmallest: 'V$N$ — smallest',
 
   naBitDepth: 'Bit depth applies to lossless formats only. $CODEC$ is a lossy codec and stores no fixed bit depth.',
-  naJoint: 'Opus decides mid/side coding per frame on its own and offers no switch for it.',
-  naBitrate: 'FLAC is lossless, so the bitrate follows from the audio. Use the compression level to trade encoding time against file size.',
+  naJointOpus: 'Opus decides mid/side coding per frame on its own and offers no switch for it.',
+  naJointAlac: 'ALAC makes its own per-frame decision about the stereo pair and offers no switch for it.',
+  naJointPcm: 'PCM stores every channel in full, side by side. There is nothing to join — that is what uncompressed means.',
+  naBitrateFlac: 'FLAC is lossless, so the bitrate follows from the audio. Use the compression level to trade encoding time against file size.',
+  naBitrateAlac: 'ALAC is lossless, so the bitrate follows from the audio. Sample rate, bit depth and channel count are the only dials.',
+  naBitratePcm: 'PCM is uncompressed, so the bitrate is simply sample rate × bit depth × channels. Change those and the bitrate follows.',
   naRateMode: '$CODEC$ offers only one bitrate mode.',
   naSampleRate: '$CODEC$ always codes and decodes at $RATE$. Lower rates are resampled away, so the file would still play at $RATE$ — the choice would not mean what it says.',
   heAacNote: 'HE-AAC and HE-AAC v2 need the patent-encumbered libfdk_aac encoder, which cannot legally be shipped in a browser app. AAC here is AAC-LC.',
+  alacNote: 'Apple Lossless holds bit-for-bit the same audio as FLAC, in an MP4 container that Apple software plays natively. FLAC files are usually a few percent smaller.',
+  wavNote: 'Uncompressed PCM — the bytes every editor reads, and by far the largest files here: about 10 MB per minute at 44.1 kHz, 16-bit, stereo.',
+  aiffNote: 'Uncompressed PCM like WAV, but big-endian — the Mac and pro-audio side of the same idea. Safari and QuickTime play it; most other browsers do not.',
 
-  infoBitrate: 'The lowest and highest values each format actually allows are offered. The list changes with the sample rate and channel count, because the legal range does too.',
+  infoBitrate: 'The lowest and highest values each format actually allows are offered, and the list follows the sample rate and channel count because the legal range does too. The number is the bitrate of the whole file, not of one channel — mono at 128 kbps therefore gives each channel twice what stereo at 128 kbps does.',
   infoCompression: 'Higher means slower encoding and a smaller file. The audio is identical either way — FLAC is lossless.',
   infoEffort: 'Higher means the encoder works harder for the same bitrate. It affects encoding time, not the bitrate.',
   infoReservoir: 'Lets a difficult passage borrow bits from easier neighbouring frames. Turning it off makes frames strictly independent, at some cost in quality.',
@@ -130,11 +137,12 @@ const EN = {
 
   chipCompression: 'Level $N$',
   chipBitDepth: '$N$-bit',
+  chipBitDepthFloat: '32-bit float',
 };
 
 const DE = {
   appName: 'ReCoding',
-  tagline: 'Audio in MP3, AAC, Opus oder FLAC umwandeln — direkt im Browser.',
+  tagline: 'Audio in MP3, AAC, Opus, FLAC, ALAC, WAV oder AIFF umwandeln — direkt im Browser.',
   privacyNote: 'Deine Dateien verlassen dein Gerät nicht. Kein Upload, kein Konto, kein Tracking.',
 
   engineLoading: 'Konverter-Engine wird geladen — etwa 32 MB, einmal pro Browser…',
@@ -194,13 +202,20 @@ const DE = {
   qualitySmallest: 'V$N$ — kleinste',
 
   naBitDepth: 'Bittiefe gilt nur für verlustfreie Formate. $CODEC$ ist ein verlustbehafteter Codec und speichert keine feste Bittiefe.',
-  naJoint: 'Opus entscheidet die Mid/Side-Kodierung selbst pro Frame und bietet dafür keinen Schalter.',
-  naBitrate: 'FLAC ist verlustfrei, die Bitrate ergibt sich also aus dem Audiomaterial. Über die Kompressionsstufe tauschst du Rechenzeit gegen Dateigröße.',
+  naJointOpus: 'Opus entscheidet die Mid/Side-Kodierung selbst pro Frame und bietet dafür keinen Schalter.',
+  naJointAlac: 'ALAC entscheidet pro Frame selbst über das Stereopaar und bietet dafür keinen Schalter.',
+  naJointPcm: 'PCM speichert jeden Kanal vollständig nebeneinander. Es gibt nichts zusammenzufassen — genau das heißt unkomprimiert.',
+  naBitrateFlac: 'FLAC ist verlustfrei, die Bitrate ergibt sich also aus dem Audiomaterial. Über die Kompressionsstufe tauschst du Rechenzeit gegen Dateigröße.',
+  naBitrateAlac: 'ALAC ist verlustfrei, die Bitrate ergibt sich also aus dem Audiomaterial. Abtastrate, Bittiefe und Kanalzahl sind die einzigen Stellschrauben.',
+  naBitratePcm: 'PCM ist unkomprimiert, die Bitrate ist also schlicht Abtastrate × Bittiefe × Kanalzahl. Ändere diese Werte, und die Bitrate folgt.',
   naRateMode: '$CODEC$ bietet nur einen Bitratenmodus.',
   naSampleRate: '$CODEC$ kodiert und dekodiert immer mit $RATE$. Niedrigere Raten werden wegresampelt, die Datei liefe also weiterhin mit $RATE$ — die Auswahl würde nicht bedeuten, was sie sagt.',
   heAacNote: 'HE-AAC und HE-AAC v2 benötigen den patentbelasteten Encoder libfdk_aac, der in einer Browser-App rechtlich nicht mitgeliefert werden darf. AAC ist hier AAC-LC.',
+  alacNote: 'Apple Lossless enthält bitgenau dasselbe Audio wie FLAC, in einem MP4-Container, den Apple-Software nativ abspielt. FLAC-Dateien sind meist ein paar Prozent kleiner.',
+  wavNote: 'Unkomprimiertes PCM — die Bytes, die jeder Editor liest, und mit Abstand die größten Dateien hier: rund 10 MB pro Minute bei 44,1 kHz, 16 Bit, Stereo.',
+  aiffNote: 'Unkomprimiertes PCM wie WAV, aber Big-Endian — die Mac- und Pro-Audio-Seite derselben Idee. Safari und QuickTime spielen es ab, die meisten anderen Browser nicht.',
 
-  infoBitrate: 'Angeboten werden die tatsächlich niedrigsten und höchsten Werte, die das jeweilige Format zulässt. Die Liste ändert sich mit Abtastrate und Kanalzahl, weil sich der zulässige Bereich mit ändert.',
+  infoBitrate: 'Angeboten werden die tatsächlich niedrigsten und höchsten Werte, die das jeweilige Format zulässt; die Liste folgt Abtastrate und Kanalzahl, weil der zulässige Bereich das auch tut. Der Wert gilt für die gesamte Datei, nicht für einen Kanal — Mono mit 128 kbps gibt jedem Kanal also doppelt so viel wie Stereo mit 128 kbps.',
   infoCompression: 'Höher bedeutet langsamer kodiert und kleinere Datei. Das Audiomaterial ist in beiden Fällen identisch — FLAC ist verlustfrei.',
   infoEffort: 'Höher bedeutet, dass der Encoder bei gleicher Bitrate mehr Aufwand betreibt. Das beeinflusst die Rechenzeit, nicht die Bitrate.',
   infoReservoir: 'Lässt eine schwierige Passage Bits von einfacheren Nachbarframes borgen. Ausgeschaltet sind die Frames strikt unabhängig, was etwas Qualität kostet.',
@@ -249,6 +264,7 @@ const DE = {
 
   chipCompression: 'Stufe $N$',
   chipBitDepth: '$N$ Bit',
+  chipBitDepthFloat: '32 Bit Fließkomma',
 };
 
 // ---------------------------------------------------------------------------
