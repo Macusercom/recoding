@@ -6,6 +6,17 @@ A privacy-first web app that converts audio to MP3, AAC, Opus, FLAC, ALAC, WAV o
 🌐 **[Try it live → macusercom.github.io/recoding](https://macusercom.github.io/recoding/)**
 
 
+## Images
+
+<p align="center">
+  <img src="images/image1.png" alt="ReCoding start screen" width="70%"><br>
+  <sub><b>Start</b> — drop a file and pick a format</sub>
+</p>
+
+<!-- Room for more: add images/image2.png (output settings) and images/image3.png
+     (converted files side by side) and lay the three out in a table when they exist. -->
+
+
 ## Features
 - Drag & drop an audio file anywhere on the page, or click to pick one
 - Reads the real format out of the file — codec, sample rate, channels, bit depth, bitrate and duration — rather than trusting the extension
@@ -67,17 +78,6 @@ Then open [http://localhost:8000](http://localhost:8000) in your browser.
 - The input file is mounted read-only via WORKERFS rather than copied into the wasm heap, so a large file does not have to fit in memory twice
 - `docs/codecs.js` is the single source of truth: the settings form is rendered from the same tables that build the FFmpeg arguments
 - Settings and language are kept in `localStorage` — no cookies
-
-
-## Images
-
-<p align="center">
-  <img src="images/image1.png" alt="ReCoding start screen" width="70%"><br>
-  <sub><b>Start</b> — drop a file and pick a format</sub>
-</p>
-
-<!-- Room for more: add images/image2.png (output settings) and images/image3.png
-     (converted files side by side) and lay the three out in a table when they exist. -->
 
 
 ## License
