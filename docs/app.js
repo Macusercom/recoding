@@ -252,7 +252,35 @@ function update(key, value) {
   renderSettings();
 }
 
+// select() reports a stored choice the current codec cannot offer — MP3's VBR
+// mode when switching to AAC, a 32-bit float depth when switching to FLAC — by
+// calling update() the moment it falls back, which lands back in here while the
+// pass that created that select is still appending fields. That pass would then
+// append a second, complete set of fields to the same grid. So: let the running
+// pass finish, and repeat it afterwards with the corrected settings. One repeat
+// is always enough in practice, because a fallback lands on an option the codec
+// does offer; the counter is only there so a future codec table cannot spin.
+let rendering = false;
+let renderPending = false;
+
 function renderSettings() {
+  if (rendering) {
+    renderPending = true;
+    return;
+  }
+  rendering = true;
+  try {
+    let passes = 0;
+    do {
+      renderPending = false;
+      renderFields();
+    } while (renderPending && ++passes < 5);
+  } finally {
+    rendering = false;
+  }
+}
+
+function renderFields() {
   const grid = $('settings-grid');
   grid.textContent = '';
   const codec = CODECS[settings.codec];
