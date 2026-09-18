@@ -1,0 +1,313 @@
+// Codec capability tables and ffmpeg argument construction.
+//
+// This file is the single source of truth: the settings form is rendered from
+// these tables, and the same tables build the argv. Every limit here was
+// verified against a real ffmpeg rather than taken from documentation, because
+// the encoders disagree about how they fail:
+//
+//   - libmp3lame rejects an unsupported sample rate outright, but silently
+//     clamps an out-of-range bitrate (-b:a 8k at 48 kHz produced 32 kbps).
+//   - libopus rejects both: over 256 kbps *per channel* is an error, not a
+//     clamp, so a mono file cannot take the 510 kbps a stereo one accepts.
+//   - The native aac encoder clamps everything and never errors.
+//
+// So the form never offers an invalid combination in the first place, and
+// resolve() re-checks whatever survives from stored settings.
+
+export const KEEP = 'keep';
+
+// MPEG-1 Layer III (32/44.1/48 kHz) and MPEG-2 / 2.5 (everything lower) have
+// different legal bitrate tables. LAME picks the layer from the sample rate.
+const MP3_MPEG1 = [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320];
+const MP3_MPEG25 = [8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
+
+const AAC_BITRATES = [8, 16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 224, 256, 288, 320];
+const OPUS_BITRATES = [6, 8, 12, 16, 24, 32, 48, 64, 80, 96, 128, 160, 192, 256, 320, 384, 448, 512];
+
+const bool = (v) => (v ? '1' : '0');
+
+// ---------------------------------------------------------------------------
+// Codec table
+// ---------------------------------------------------------------------------
+
+export const CODECS = {
+  mp3: {
+    id: 'mp3',
+    label: 'MP3',
+    ext: 'mp3',
+    mime: 'audio/mpeg',
+    encoder: 'libmp3lame',
+    sampleRates: [8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000],
+    rateModes: ['cbr', 'abr', 'vbr'],
+    defaultBitrate: 192,
+    // LAME's -q:a scale. V0 is the best quality, V9 the smallest.
+    vbrRange: { min: 0, max: 9, default: 2, step: 1 },
+    bitDepths: null,
+    joint: true,
+    bitrates(sampleRate) {
+      return sampleRate >= 32000 ? MP3_MPEG1 : MP3_MPEG25;
+    },
+    args(o, r) {
+      const a = ['-c:a', 'libmp3lame'];
+      if (o.rateMode === 'vbr') a.push('-q:a', String(o.quality));
+      else if (o.rateMode === 'abr') a.push('-abr', '1', '-b:a', `${o.bitrate}k`);
+      else a.push('-b:a', `${o.bitrate}k`);
+      if (r.channels === 2) a.push('-joint_stereo', bool(r.joint));
+      a.push('-reservoir', bool(o.mp3Reservoir));
+      return a;
+    },
+  },
+
+  aac: {
+    id: 'aac',
+    label: 'AAC-LC',
+    ext: 'm4a',
+    mime: 'audio/mp4',
+    encoder: 'aac',
+    sampleRates: [7350, 8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 64000, 88200, 96000],
+    // The native encoder's -q:a does not actually engage VBR — it still emits
+    // the default constant bitrate — so constant is the only honest option.
+    rateModes: ['cbr'],
+    defaultBitrate: 192,
+    vbrRange: null,
+    bitDepths: null,
+    joint: true,
+    bitrates() {
+      return AAC_BITRATES;
+    },
+    args(o, r) {
+      const a = ['-c:a', 'aac', '-b:a', `${o.bitrate}k`];
+      // Left alone when the channel mode is "keep", so the encoder's own
+      // per-block M/S decision stands.
+      if (r.channels === 2 && r.jointExplicit) a.push('-aac_ms', bool(r.joint));
+      a.push('-aac_coder', o.aacCoder);
+      // Without this the moov atom lands at the end of the file, and the
+      // <audio> element cannot start playing until the whole blob is read.
+      a.push('-movflags', '+faststart');
+      return a;
+    },
+  },
+
+  opus: {
+    id: 'opus',
+    label: 'Opus',
+    ext: 'opus',
+    mime: 'audio/ogg',
+    encoder: 'libopus',
+    // Opus always codes and decodes at 48 kHz. Passing -ar 16000 does not make
+    // a 16 kHz file — ffmpeg resamples, libopus notes the original rate in the
+    // Ogg header, and the stream still reports 48 kHz to every player. Offering
+    // the lower rates would promise something the format cannot deliver, so the
+    // field is fixed and the form disables it.
+    sampleRates: [48000],
+    rateModes: ['vbr_opus', 'cvbr', 'cbr'],
+    defaultBitrate: 128,
+    vbrRange: null,
+    bitDepths: null,
+    // libopus decides mid/side per frame on its own and exposes no switch.
+    joint: false,
+    // Hard ceiling of 256 kbps per channel: at 257k mono libopus refuses to
+    // open, so this has to track the resolved channel count, not just the rate.
+    bitrates(sampleRate, channels) {
+      const max = 256 * (channels || 2);
+      return OPUS_BITRATES.filter((b) => b <= max);
+    },
+    args(o) {
+      const a = ['-c:a', 'libopus', '-b:a', `${o.bitrate}k`];
+      a.push('-vbr', o.rateMode === 'cbr' ? 'off' : o.rateMode === 'cvbr' ? 'constrained' : 'on');
+      a.push('-application', o.opusApplication);
+      a.push('-compression_level', String(o.opusCompression));
+      return a;
+    },
+  },
+
+  flac: {
+    id: 'flac',
+    label: 'FLAC',
+    ext: 'flac',
+    mime: 'audio/flac',
+    encoder: 'flac',
+    sampleRates: [8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000, 88200, 96000, 176400, 192000],
+    rateModes: null, // lossless — compression level instead of a bitrate
+    defaultBitrate: null,
+    vbrRange: null,
+    // -sample_fmt s32 yields a 24-bit FLAC (bits_per_raw_sample=24), not 32.
+    bitDepths: [16, 24],
+    joint: true,
+    bitrates() {
+      return [];
+    },
+    args(o, r) {
+      const a = ['-c:a', 'flac', '-compression_level', String(o.flacCompression)];
+      if (r.bitDepth) a.push('-sample_fmt', r.bitDepth === 24 ? 's32' : 's16');
+      if (r.channels === 2 && r.jointExplicit) a.push('-ch_mode', r.joint ? 'mid_side' : 'indep');
+      return a;
+    },
+  },
+};
+
+export const CODEC_ORDER = ['mp3', 'aac', 'opus', 'flac'];
+
+export const DEFAULT_OPTIONS = {
+  codec: 'mp3',
+  rateMode: 'cbr',
+  bitrate: 192,
+  quality: 2,
+  sampleRate: KEEP,
+  bitDepth: KEEP,
+  channels: KEEP,
+  mp3Reservoir: true,
+  aacCoder: 'twoloop',
+  opusApplication: 'audio',
+  opusCompression: 10,
+  flacCompression: 8,
+};
+
+// ---------------------------------------------------------------------------
+// Resolution
+// ---------------------------------------------------------------------------
+
+const nearest = (want, list) =>
+  list.reduce((best, v) => (Math.abs(v - want) < Math.abs(best - want) ? v : best), list[0]);
+
+/**
+ * Turns the form's options plus the probed source into concrete values, and
+ * reports every place the codec forced a different choice so the UI can say so
+ * instead of quietly producing something the user did not ask for.
+ */
+export function resolve(opts, source) {
+  const codec = CODECS[opts.codec];
+  const notes = [];
+
+  // ---- channels ----
+  const srcChannels = source?.channels || 2;
+  let channels = srcChannels;
+  let joint = false;
+  let jointExplicit = false;
+  if (opts.channels === 'mono') channels = 1;
+  else if (opts.channels === 'stereo' || opts.channels === 'joint') {
+    channels = 2;
+    jointExplicit = true;
+    joint = opts.channels === 'joint';
+  }
+  if (jointExplicit && srcChannels === 1 && opts.channels === 'joint') {
+    notes.push({ key: 'noteJointMonoSource' });
+  }
+  if (opts.channels === 'joint' && !codec.joint) {
+    joint = false;
+    jointExplicit = false;
+    notes.push({ key: 'noteNoJoint', subs: [codec.label] });
+  }
+
+  // ---- sample rate ----
+  let sampleRate = opts.sampleRate === KEEP ? source?.sampleRate || 48000 : Number(opts.sampleRate);
+  if (!codec.sampleRates.includes(sampleRate)) {
+    const fallback = nearest(sampleRate, codec.sampleRates);
+    // A codec with exactly one legal rate never offered a choice to override,
+    // so reporting a substitution there would just be noise.
+    if (codec.sampleRates.length > 1) {
+      notes.push({ key: 'noteSampleRate', subs: [khz(sampleRate), khz(fallback), codec.label] });
+    }
+    sampleRate = fallback;
+  }
+  // "Keep" on a matching rate means passing no -ar at all.
+  const explicitRate = opts.sampleRate !== KEEP || sampleRate !== source?.sampleRate;
+
+  // ---- bit depth ----
+  let bitDepth = null;
+  if (codec.bitDepths) {
+    if (opts.bitDepth === KEEP) {
+      const src = source?.bitDepth;
+      bitDepth = src && src > 16 ? 24 : 16;
+    } else {
+      bitDepth = Number(opts.bitDepth);
+    }
+  }
+
+  // ---- bitrate ----
+  let bitrate = null;
+  let rateMode = opts.rateMode;
+  if (codec.rateModes) {
+    if (!codec.rateModes.includes(rateMode)) rateMode = codec.rateModes[0];
+    if (rateMode !== 'vbr') {
+      const allowed = codec.bitrates(sampleRate, channels);
+      bitrate = Number(opts.bitrate);
+      if (!allowed.includes(bitrate)) {
+        const fallback = nearest(bitrate, allowed);
+        notes.push({ key: 'noteBitrate', subs: [String(bitrate), String(fallback)] });
+        bitrate = fallback;
+      }
+    }
+  }
+
+  return { codec, channels, joint, jointExplicit, sampleRate, explicitRate, bitDepth, bitrate, rateMode, notes };
+}
+
+/**
+ * Full ffmpeg argv for one conversion.
+ *
+ * -vn -map 0:a:0 is not optional: an MP3 with embedded cover art exposes it as
+ * a video stream, which the default stream selection picks up and most audio
+ * muxers then refuse.
+ */
+export function buildArgs(opts, source, inputPath, outputPath) {
+  const r = resolve(opts, source);
+  const merged = { ...opts, bitrate: r.bitrate, rateMode: r.rateMode };
+
+  const args = ['-i', inputPath, '-vn', '-map', '0:a:0', '-map_metadata', '0'];
+  if (r.explicitRate) args.push('-ar', String(r.sampleRate));
+  if (r.channels !== source?.channels) args.push('-ac', String(r.channels));
+  args.push(...r.codec.args(merged, r));
+  args.push(outputPath);
+  return { args, resolved: r };
+}
+
+// ---------------------------------------------------------------------------
+// Display
+// ---------------------------------------------------------------------------
+
+export function khz(hz) {
+  if (!hz) return '–';
+  const v = hz / 1000;
+  return `${Number.isInteger(v) ? v : v.toFixed(3).replace(/0+$/, '')} kHz`;
+}
+
+/** Short settings chips for a finished result, e.g. MP3 · 192 kbps CBR · 44.1 kHz · Joint stereo. */
+export function describe(opts, resolved, msg) {
+  const { codec } = resolved;
+  const chips = [codec.label];
+
+  if (codec.id === 'flac') {
+    chips.push(msg('chipCompression', [String(opts.flacCompression)]));
+    chips.push(msg('chipBitDepth', [String(resolved.bitDepth)]));
+  } else if (resolved.rateMode === 'vbr') {
+    chips.push(`VBR V${opts.quality}`);
+  } else {
+    const mode = { cbr: 'CBR', abr: 'ABR', cvbr: msg('rateConstrained'), vbr_opus: 'VBR' }[resolved.rateMode];
+    chips.push(`${resolved.bitrate} kbps ${mode}`);
+  }
+
+  chips.push(khz(resolved.sampleRate));
+  chips.push(
+    resolved.channels === 1
+      ? msg('chMono')
+      : resolved.jointExplicit && resolved.joint
+        ? msg('chJoint')
+        : msg('chStereo')
+  );
+  return chips;
+}
+
+/** Output file name: stem, the settings that distinguish it, then the extension. */
+export function outputName(sourceName, opts, resolved) {
+  const dot = sourceName.lastIndexOf('.');
+  const stem = dot > 0 ? sourceName.slice(0, dot) : sourceName;
+  const { codec } = resolved;
+  const parts = [codec.id];
+  if (codec.id === 'flac') parts.push(`${resolved.bitDepth}bit`, `c${opts.flacCompression}`);
+  else if (resolved.rateMode === 'vbr') parts.push(`v${opts.quality}`);
+  else parts.push(`${resolved.bitrate}k`);
+  parts.push(`${Math.round(resolved.sampleRate / 100) / 10}k`);
+  if (resolved.channels === 1) parts.push('mono');
+  return `${stem}_${parts.join('_')}.${codec.ext}`;
+}

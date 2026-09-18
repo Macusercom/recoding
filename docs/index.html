@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0d0d0d" />
+  <meta name="description" content="Convert audio to MP3, AAC, Opus or FLAC entirely in your browser. No upload, no account, no tracking." />
+  <title>ReCoding – Convert audio in your browser</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-title-key="indexPageTitle">
+
+  <div class="topbar">
+    <div class="lang-toggle">
+      <button class="lang-btn" type="button" data-lang="de">DE</button>
+      <button class="lang-btn" type="button" data-lang="en">EN</button>
+    </div>
+  </div>
+
+  <header class="hero">
+    <img class="logo" src="icon.svg" alt="" />
+    <h1 data-i18n="appName">ReCoding</h1>
+    <p class="tagline" data-i18n="tagline">Convert audio to MP3, AAC, Opus or FLAC — right in your browser.</p>
+    <p class="privacy-note" data-i18n="privacyNote">Your files never leave your device. No upload, no account, no tracking.</p>
+  </header>
+
+  <main>
+    <section>
+      <div id="drop-zone" role="button" tabindex="0" aria-labelledby="drop-title">
+        <div class="drop-icon" aria-hidden="true">⬇</div>
+        <p class="drop-title" id="drop-title" data-i18n="dropTitle">Drop an audio file here</p>
+        <p class="drop-sub" data-i18n="dropSub">or click to choose one</p>
+        <p class="drop-formats" data-i18n="dropFormats">MP3, WAV, FLAC, M4A, OGG, Opus, AIFF and anything else FFmpeg can read.</p>
+      </div>
+      <div id="status" hidden>
+        <span id="status-text"></span>
+        <div class="progress-bar" id="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+    </section>
+
+    <section class="card" id="source-card" hidden>
+      <h2 data-i18n="sourceTitle">Source file</h2>
+      <p class="card-hint" data-i18n="sourceHint">Convert it as often as you like — every result is kept below.</p>
+
+      <div class="source-head">
+        <div class="source-name" id="source-name"></div>
+        <button type="button" id="btn-choose-other" data-i18n="chooseOther">Choose another file</button>
+      </div>
+
+      <div class="facts" id="source-facts"></div>
+      <p class="warn" id="source-warn" data-i18n="sourceLarge" hidden></p>
+      <audio id="source-audio" controls preload="metadata"></audio>
+    </section>
+
+    <section class="card" id="settings-card" hidden>
+      <h2 data-i18n="settingsTitle">Output settings</h2>
+      <p class="card-hint" data-i18n="settingsHint">Options that the chosen codec cannot do are disabled — hover one to see why.</p>
+
+      <div class="field-grid" id="settings-grid"></div>
+
+      <p class="codec-note" id="codec-note" hidden></p>
+
+      <div class="settings-foot">
+        <span class="note" id="settings-note"></span>
+        <button type="button" class="primary" id="btn-convert" data-i18n="convert">Convert</button>
+      </div>
+    </section>
+
+    <section class="card" id="results-card" hidden>
+      <h2 data-i18n="resultsTitle">Converted files</h2>
+      <p class="card-hint" data-i18n="resultsHint">Every conversion is kept, so you can compare settings side by side.</p>
+      <div id="results-list"></div>
+      <div class="results-foot">
+        <button type="button" id="btn-clear-results" data-i18n="clearAll">Clear all</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 data-i18n="howTitle">How it works</h2>
+      <ol class="how-list">
+        <li data-i18n="howStep1"></li>
+        <li data-i18n="howStep2"></li>
+        <li data-i18n="howStep3"></li>
+        <li data-i18n="howStep4"></li>
+      </ol>
+      <p class="standards-note" data-i18n-html="engineNote"></p>
+    </section>
+  </main>
+
+  <footer>
+    <p class="footer-links">
+      <a href="https://github.com/Macusercom/recoding" target="_blank" rel="noopener" data-i18n="footerSource">Source code</a>
+      ·
+      <a href="licenses.html" data-i18n="footerLicenses">Licenses</a>
+      ·
+      <a href="privacy.html" data-i18n="footerPrivacy">Privacy Policy</a>
+      ·
+      <a href="imprint.html" data-i18n="footerImprint">Imprint</a>
+    </p>
+    <p class="footer-copyright" data-i18n="footerCopyright">© 2026 Macusercom</p>
+  </footer>
+
+  <div id="drop-overlay" data-i18n="dropOverlay" hidden>Drop the file to load it</div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

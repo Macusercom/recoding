@@ -1,0 +1,379 @@
+/* Palette and page chrome carried over from the LUFSly web app, so the two
+   sites read as one family. */
+:root {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --grid: #2c2c2a;
+  --baseline: #383835;
+  --border: rgba(255, 255, 255, 0.10);
+  --accent: #3987e5;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --critical: #d03b3b;
+
+  --radius: 12px;
+  --wrap: 860px;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); }
+
+button, select, input[type="number"] {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+input[type="number"] { cursor: text; }
+button:hover:not(:disabled) { background: #242423; }
+button:focus-visible, select:focus-visible, input:focus-visible,
+[tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); border-color: transparent; font-weight: 600; }
+button.primary:hover:not(:disabled) { background: #2a78d6; }
+button:disabled, select:disabled { opacity: 0.45; cursor: not-allowed; }
+/* A disabled control here means "this codec cannot do that", and the reason
+   lives in its title — so the pointer must still reach it to show the tooltip. */
+select:disabled { pointer-events: auto; }
+
+/* ---------- page chrome ---------- */
+
+.topbar {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 16px 20px 0;
+  display: flex;
+  justify-content: flex-end;
+}
+.lang-toggle { display: flex; gap: 6px; }
+.lang-btn {
+  padding: 5px 12px;
+  font-size: 13px;
+  border-radius: 99px;
+  color: var(--muted);
+}
+.lang-btn.active {
+  background: rgba(57, 135, 229, 0.14);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.hero {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 24px 20px 8px;
+  text-align: center;
+}
+.hero .logo { height: 56px; width: 56px; }
+.hero h1 {
+  margin: 10px 0 0;
+  font-size: clamp(26px, 5vw, 34px);
+  letter-spacing: -0.02em;
+}
+.hero .tagline {
+  margin: 8px auto 0;
+  max-width: 640px;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+.hero .privacy-note { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+
+main {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 16px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.card > h2 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+}
+.card-hint { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+
+/* ---------- drop zone ---------- */
+
+#drop-zone {
+  border: 2px dashed var(--baseline);
+  border-radius: var(--radius);
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface);
+  transition: border-color 0.15s, background 0.15s;
+}
+#drop-zone:hover, #drop-zone.dragover {
+  border-color: var(--accent);
+  background: rgba(57, 135, 229, 0.07);
+}
+.drop-icon { font-size: 40px; line-height: 1; }
+.drop-title { margin: 12px 0 4px; font-size: 18px; font-weight: 600; }
+.drop-sub { margin: 0; color: var(--ink-2); }
+.drop-formats { margin: 14px 0 0; color: var(--muted); font-size: 13px; }
+
+#drop-overlay {
+  position: fixed; inset: 10px; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(13, 13, 13, 0.9);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  font-size: 20px; font-weight: 600; text-align: center; padding: 24px;
+  pointer-events: none;
+}
+
+/* ---------- status line ---------- */
+
+#status {
+  margin-top: 14px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+#status.error { color: var(--critical); }
+.progress-bar {
+  height: 4px; margin-top: 8px;
+  background: var(--grid); border-radius: 2px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; width: 0%;
+  background: var(--accent);
+  transition: width 120ms linear;
+}
+/* No percentage to show yet — a slow sweep beats a bar frozen at zero while
+   32 MB of wasm comes down. */
+.progress-bar.indeterminate .progress-fill {
+  width: 35%;
+  transition: none;
+  animation: sweep 1.3s ease-in-out infinite;
+}
+@keyframes sweep {
+  0% { margin-left: -35%; }
+  100% { margin-left: 100%; }
+}
+
+/* ---------- source ---------- */
+
+.source-head {
+  display: flex; align-items: baseline; gap: 10px;
+  justify-content: space-between; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.source-name { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.source-head button { font-size: 13px; padding: 6px 12px; color: var(--muted); flex: none; }
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0 24px;
+}
+.fact {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--grid);
+  font-variant-numeric: tabular-nums;
+}
+.fact-label { color: var(--muted); font-size: 13px; }
+.fact-value { text-align: right; white-space: nowrap; font-size: 14px; }
+
+audio { width: 100%; margin-top: 14px; display: block; }
+
+.warn {
+  margin: 14px 0 0; padding: 10px 12px;
+  background: rgba(250, 178, 25, 0.10);
+  border: 1px solid rgba(250, 178, 25, 0.35);
+  border-radius: 8px;
+  color: var(--warning); font-size: 13px;
+}
+
+/* ---------- settings ---------- */
+
+.field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field label { color: var(--ink-2); font-size: 13px; display: flex; align-items: center; }
+.field select, .field input[type="number"] { width: 100%; }
+/* A disabled field still occupies its slot, so the grid does not reflow every
+   time the format changes — the controls stay where the eye left them. */
+.field.off label { color: var(--muted); }
+
+.settings-foot {
+  margin-top: 18px; display: flex; gap: 12px; align-items: center;
+  justify-content: flex-end; flex-wrap: wrap;
+}
+.settings-foot .note { color: var(--muted); font-size: 13px; margin-right: auto; }
+#btn-convert { min-width: 160px; }
+
+.codec-note {
+  margin: 14px 0 0; padding-top: 14px;
+  border-top: 1px solid var(--grid);
+  color: var(--muted); font-size: 13px;
+}
+
+/* ---------- results ---------- */
+
+#results-list { display: flex; flex-direction: column; gap: 10px; }
+.result {
+  padding: 14px;
+  background: var(--page);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.result-head {
+  display: flex; align-items: flex-start; gap: 10px; justify-content: space-between;
+}
+.result-name { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.result-source { color: var(--muted); font-size: 12px; font-weight: 400; margin-top: 2px; }
+.result-remove {
+  padding: 4px 8px; font-size: 14px; line-height: 1; flex: none;
+  background: transparent; border-color: transparent; color: var(--muted);
+}
+.result-remove:hover { color: var(--critical); background: transparent; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
+.chip {
+  font-size: 12px; padding: 3px 9px; border-radius: 99px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.chip.size { border-color: rgba(57, 135, 229, 0.4); color: var(--ink); }
+
+.result-notes { margin: 10px 0 0; }
+.result-note { margin: 0; color: var(--warning); font-size: 12px; }
+
+.result-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.result-actions a.download {
+  font-size: 13px; padding: 7px 14px;
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--ink); text-decoration: none; background: var(--surface);
+}
+.result-actions a.download:hover { background: #242423; }
+.no-playback { color: var(--muted); font-size: 13px; margin: 12px 0 0; }
+
+.cmd { margin-top: 10px; }
+.cmd > summary {
+  cursor: pointer; list-style: none;
+  color: var(--muted); font-size: 12px; padding: 4px 0; user-select: none;
+}
+.cmd > summary::-webkit-details-marker { display: none; }
+/* Swapping the glyph rather than rotating one: a rotated inline-block sits off
+   its baseline next to the text. */
+.cmd > summary::before { content: '▸'; display: inline-block; width: 14px; }
+.cmd[open] > summary::before { content: '▾'; }
+.cmd > summary:hover { color: var(--accent); }
+.cmd pre {
+  margin: 6px 0 0; padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--ink-2); font-size: 12px;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+.results-empty { color: var(--muted); font-size: 14px; margin: 0; }
+.results-foot { margin-top: 14px; display: flex; justify-content: flex-end; }
+.results-foot button { font-size: 13px; padding: 6px 12px; color: var(--muted); }
+
+/* ---------- info icons ---------- */
+
+.info {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; margin-left: 6px; flex: none;
+  border: 1px solid var(--muted); border-radius: 50%;
+  color: var(--muted); font-size: 10px; font-weight: 700; font-style: italic;
+  text-transform: none; letter-spacing: 0; cursor: help; user-select: none;
+  vertical-align: middle;
+}
+.info::before { content: 'i'; }
+.info:hover, .info:focus { color: var(--ink); border-color: var(--ink-2); }
+
+/* ---------- how it works ---------- */
+
+.how-list { margin: 0; padding-left: 22px; color: var(--ink-2); }
+.how-list li { margin-bottom: 8px; }
+.standards-note {
+  margin: 16px 0 0; padding-top: 16px;
+  border-top: 1px solid var(--grid);
+  color: var(--muted); font-size: 13px;
+}
+
+/* ---------- legal & licenses pages ---------- */
+
+.back-nav { max-width: var(--wrap); margin: 0 auto; padding: 0 20px; }
+.back-nav a { color: var(--ink-2); text-decoration: none; font-size: 14px; }
+.back-nav a:hover { color: var(--accent); }
+
+.legal-content h3,
+.legal-content h4 { margin: 0 0 14px; font-size: 19px; }
+.legal-content h5 { margin: 22px 0 8px; font-size: 15px; color: var(--ink); }
+.legal-content p { margin: 0 0 12px; font-size: 14px; line-height: 1.65; color: var(--ink-2); }
+.legal-content ul { padding-left: 22px; margin: 0 0 12px; }
+.legal-content li { font-size: 14px; line-height: 1.65; color: var(--ink-2); }
+.legal-content a { color: var(--accent); word-break: break-word; }
+.legal-content b, .legal-content strong { color: var(--ink); }
+
+.legal-content pre {
+  padding: 12px; margin: 0 0 12px;
+  background: var(--page); border: 1px solid var(--grid); border-radius: 8px;
+  color: var(--muted); font-size: 12px; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.legal-content dl { margin: 0 0 12px; }
+.legal-content dt { color: var(--ink); font-size: 14px; margin-top: 12px; font-weight: 600; }
+.legal-content dd { margin: 4px 0 0; color: var(--ink-2); font-size: 14px; }
+
+/* ---------- footer ---------- */
+
+footer {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 28px 20px 40px;
+  border-top: 1px solid var(--grid);
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.footer-links { margin: 8px 0 0; }
+.footer-links a { color: var(--ink-2); text-decoration: none; }
+.footer-links a:hover { color: var(--accent); text-decoration: underline; }
+.footer-copyright { margin: 10px 0 0; }
+
+/* ---------- narrow screens ---------- */
+
+@media (max-width: 640px) {
+  .field-grid { grid-template-columns: minmax(0, 1fr); }
+  #drop-zone { padding: 32px 16px; }
+  .settings-foot { flex-direction: column; align-items: stretch; }
+  .settings-foot .note { margin-right: 0; text-align: center; }
+  #btn-convert { width: 100%; }
+  .result-actions a.download { flex: 1; text-align: center; }
+}

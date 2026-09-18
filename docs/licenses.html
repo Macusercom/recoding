@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0d0d0d" />
+  <title>Licenses – ReCoding</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-title-key="licensesPageTitle">
+
+  <div class="topbar">
+    <div class="lang-toggle">
+      <button class="lang-btn" type="button" data-lang="de">DE</button>
+      <button class="lang-btn" type="button" data-lang="en">EN</button>
+    </div>
+  </div>
+
+  <header class="hero">
+    <img class="logo" src="icon.svg" alt="" />
+    <h1 data-i18n="appName">ReCoding</h1>
+    <p class="tagline" data-i18n="licensesTitle">Licenses &amp; Attribution</p>
+  </header>
+
+  <nav class="back-nav"><a href="index.html" data-i18n="backToApp">← Back to the app</a></nav>
+
+  <main>
+    <section class="card legal-content">
+      <h3>Licenses &amp; attribution</h3>
+
+      <p>This page is served in English only: the license texts it reproduces are
+      authoritative in English, and paraphrasing them in translation would change their meaning.</p>
+
+      <h5>ReCoding</h5>
+      <p>Copyright © 2026 Macusercom. Licensed under the
+      <b>GNU General Public License, version 3 or later</b>.</p>
+      <p>ReCoding is distributed together with a build of FFmpeg that is itself under the GPL,
+      so the site as a whole is conveyed under the GPL. The complete source of ReCoding is at
+      <a href="https://github.com/Macusercom/recoding" target="_blank" rel="noopener">github.com/Macusercom/recoding</a>.</p>
+
+      <h5>ffmpeg.wasm — JavaScript wrapper</h5>
+      <p><code>@ffmpeg/ffmpeg</code> 0.12.15 and <code>@ffmpeg/util</code> 0.12.2, copyright ©
+      2019 Jerome Wu, used under the <b>MIT License</b>. Source:
+      <a href="https://github.com/ffmpegwasm/ffmpeg.wasm" target="_blank" rel="noopener">github.com/ffmpegwasm/ffmpeg.wasm</a>.
+      The license text as shipped is at
+      <a href="vendor/ffmpeg/LICENSE">vendor/ffmpeg/LICENSE</a>.</p>
+
+      <pre>MIT License
+
+Copyright (c) 2019 Jerome Wu
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</pre>
+
+      <h5>ffmpeg-core.wasm — FFmpeg</h5>
+      <p><code>@ffmpeg/core</code> 0.12.10, the WebAssembly build of <b>FFmpeg n5.1.4</b> that does
+      the actual encoding, is licensed under the <b>GNU General Public License, version 2 or
+      later</b>. It is built with <code>--enable-gpl</code> together with libx264 and libx265,
+      which makes the GPL, rather than the LGPL, the governing license for the binary.</p>
+      <p>The binary shipped here is <a href="vendor/core/ffmpeg-core.wasm">vendor/core/ffmpeg-core.wasm</a>.
+      Its license texts are at <a href="vendor/core/COPYING.GPLv2">vendor/core/COPYING.GPLv2</a> and
+      <a href="vendor/core/FFMPEG-LICENSE.md">vendor/core/FFMPEG-LICENSE.md</a>.</p>
+
+      <p><b>Corresponding source.</b> The complete corresponding source for this binary, and the
+      scripts used to build it, are:</p>
+      <ul>
+        <li>FFmpeg n5.1.4 —
+          <a href="https://github.com/FFmpeg/FFmpeg/tree/n5.1.4" target="_blank" rel="noopener">github.com/FFmpeg/FFmpeg at tag n5.1.4</a></li>
+        <li>The Emscripten build configuration —
+          <a href="https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v0.12.15" target="_blank" rel="noopener">github.com/ffmpegwasm/ffmpeg.wasm at v0.12.15</a>
+          (<code>Dockerfile</code>, <code>build/ffmpeg.sh</code>, <code>build/ffmpeg-wasm.sh</code>)</li>
+      </ul>
+
+      <p>Libraries compiled into that build: libx264, libx265, libvpx, libmp3lame, libtheora,
+      libvorbis, libopus, zlib, libwebp, libfreetype, libfribidi, libass and libzimg, each under
+      its own license as documented by its upstream project.</p>
+
+      <h5>What ReCoding actually uses</h5>
+      <dl>
+        <dt>MP3</dt><dd>libmp3lame (LGPL-2.0-or-later)</dd>
+        <dt>AAC-LC</dt><dd>FFmpeg's native <code>aac</code> encoder (LGPL-2.1-or-later)</dd>
+        <dt>Opus</dt><dd>libopus (BSD-3-Clause)</dd>
+        <dt>FLAC</dt><dd>FFmpeg's native <code>flac</code> encoder (LGPL-2.1-or-later)</dd>
+      </dl>
+      <p>HE-AAC and HE-AAC v2 are deliberately absent. They require the <code>libfdk_aac</code>
+      encoder, which FFmpeg can only be built against with <code>--enable-nonfree</code> — and the
+      resulting binary may not be redistributed. AAC here is therefore AAC-LC only.</p>
+
+      <h5>Patents</h5>
+      <p>Audio coding formats may be covered by patents in some jurisdictions. No patent licence
+      is granted by the software licenses above. ReCoding is provided for personal use with
+      material you have the right to convert.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p class="footer-links">
+      <a href="index.html" data-i18n="backToReCoding">← Back to ReCoding</a>
+      ·
+      <a href="privacy.html" data-i18n="footerPrivacy">Privacy Policy</a>
+      ·
+      <a href="imprint.html" data-i18n="footerImprint">Imprint</a>
+    </p>
+    <p class="footer-copyright" data-i18n="footerCopyright">© 2026 Macusercom</p>
+  </footer>
+
+  <script type="module">
+    import { initLang } from './i18n.js';
+    initLang();
+  </script>
+</body>
+</html>
