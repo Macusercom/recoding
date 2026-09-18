@@ -21,12 +21,12 @@ A privacy-first web app that converts audio to MP3, AAC, Opus, FLAC, ALAC, WAV o
 - Drag & drop an audio file anywhere on the page, or click to pick one
 - Reads the real format out of the file — codec, sample rate, channels, bit depth, bitrate and duration — rather than trusting the extension
 - **MP3** (libmp3lame): CBR, ABR or VBR (V0–V9), 8–320 kbps, 8–48 kHz, joint stereo switch, bit reservoir
-- **AAC-LC**: 8–320 kbps, 7.35–96 kHz, forced M/S stereo, two-loop or fast coder
+- **AAC-LC**: 8–320 kbps, 7.35–96 kHz, forced M/S stereo, two-loop or fast coder — the offered range narrows to what FFmpeg's AAC encoder really delivers at the chosen rate and channel count
 - **Opus** (libopus): 6–512 kbps, VBR / constrained VBR / CBR, speech or music tuning, encoding effort 0–10
 - **FLAC**: lossless, compression level 0–12, 16- or 24-bit, mid/side or independent stereo
 - **ALAC**: lossless, 16- or 24-bit, in an MP4 container Apple software plays natively
 - **WAV** and **AIFF**: uncompressed PCM, 8/16/24/32-bit and 32-bit float, any sample rate
-- Only valid combinations are offered — the bitrate list follows the sample rate and channel count, because the legal range does too
+- Only valid combinations are offered — the bitrate list follows the sample rate and channel count, because the legal range does too. Every offered value was checked against the shipped encoder: MPEG-2.5 MP3 stops at 64 kbps, and FFmpeg's AAC encoder quietly rewrites anything outside a window that moves with both
 - The bitrate is the rate of the whole file, not of one channel, so mono at a given number gives each channel twice what stereo does — the field says so
 - Options a codec genuinely cannot do are disabled and say why, instead of silently doing something else
 - Convert the same file over and over: results accumulate, nothing is overwritten

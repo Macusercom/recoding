@@ -9,7 +9,9 @@
 //     clamps an out-of-range bitrate (-b:a 8k at 48 kHz produced 32 kbps).
 //   - libopus rejects both: over 256 kbps *per channel* is an error, not a
 //     clamp, so a mono file cannot take the 510 kbps a stereo one accepts.
-//   - The native aac encoder clamps everything and never errors.
+//   - The native aac encoder never errors either, but it rewrites both ends:
+//     8 kbps at 44.1 kHz stereo comes back as ~20, and 320 as ~222. See
+//     AAC_WINDOW.
 //   - PCM, ALAC and FLAC take any sample rate at all — 37.8 kHz encodes fine —
 //     so substituting a listed rate for an unusual source rate would resample
 //     for nothing. Those codecs carry `anyRate` and their list is a menu.
@@ -22,12 +24,44 @@ export const KEEP = 'keep';
 // number, so it travels as its own token rather than as 32.
 export const FLOAT = 'float';
 
-// MPEG-1 Layer III (32/44.1/48 kHz) and MPEG-2 / 2.5 (everything lower) have
-// different legal bitrate tables. LAME picks the layer from the sample rate.
-const MP3_MPEG1 = [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320];
-const MP3_MPEG25 = [8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
+// Three bitrate tables, not two: LAME picks the MPEG version from the sample
+// rate, and MPEG-2.5 is not merely MPEG-2 extended downwards — it stops at
+// 64 kbps. Asking for more at 8/11.025/12 kHz silently produced a 64 kbps file.
+const MP3_MPEG1 = [32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320];   // 32/44.1/48 kHz
+const MP3_MPEG2 = [8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];       // 16/22.05/24 kHz
+const MP3_MPEG25 = [8, 16, 24, 32, 40, 48, 56, 64];                                  // 8/11.025/12 kHz
 
 const AAC_BITRATES = [8, 16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 224, 256, 288, 320];
+
+// What the native aac encoder will actually give you, as the lowest and highest
+// entry of AAC_BITRATES it delivers — per sample rate, for mono and for stereo.
+// It never refuses: ask for 8 kbps at 44.1 kHz stereo and it quietly makes ~20,
+// ask for 320 and it quietly makes ~222. Both limits move with the sample rate
+// *and* the channel count, which is why this is a table and not a range.
+//
+// Measured against this build on 30 s of pink noise, accepting a value when the
+// encoded file came back within ~3 % of what was asked. The ceiling is a
+// property of the encoder, not of the material: pink noise, white noise and a
+// dense harmonic mix all landed within 1 kbps of each other at 44.1 kHz stereo.
+const AAC_WINDOW = {
+  //          mono        stereo
+  7350:  [[8, 32],    [8, 32]],
+  8000:  [[8, 32],    [8, 32]],
+  11025: [[8, 48],    [16, 48]],
+  12000: [[8, 48],    [16, 48]],
+  16000: [[8, 64],    [16, 80]],
+  22050: [[16, 96],   [16, 112]],
+  24000: [[16, 96],   [16, 112]],
+  32000: [[16, 128],  [16, 160]],
+  44100: [[16, 192],  [24, 224]],
+  48000: [[16, 224],  [24, 224]],
+  // 64 kHz mono is the one row that is not simply clamped at the top: above
+  // 224 the encoder *overshoots* instead (256 came back as 294), so the usable
+  // range ends earlier there than the raw ceiling of 360 kbps suggests.
+  64000: [[24, 224],  [24, 320]],
+  88200: [[24, 320],  [32, 320]],
+  96000: [[32, 320],  [32, 320]],
+};
 const OPUS_BITRATES = [6, 8, 12, 16, 24, 32, 48, 64, 80, 96, 128, 160, 192, 256, 320, 384, 448, 512];
 
 // WAV stores 8-bit samples unsigned and everything wider signed little-endian;
@@ -61,7 +95,8 @@ export const CODECS = {
     bitDepths: null,
     joint: true,
     bitrates(sampleRate) {
-      return sampleRate >= 32000 ? MP3_MPEG1 : MP3_MPEG25;
+      if (sampleRate >= 32000) return MP3_MPEG1;
+      return sampleRate >= 16000 ? MP3_MPEG2 : MP3_MPEG25;
     },
     args(o, r) {
       const a = ['-c:a', 'libmp3lame'];
@@ -88,9 +123,17 @@ export const CODECS = {
     vbrRange: null,
     bitDepths: null,
     joint: true,
-    note: 'heAacNote',
-    bitrates() {
-      return AAC_BITRATES;
+    note: 'aacNote',
+    bitrates(sampleRate, channels) {
+      const window = AAC_WINDOW[sampleRate];
+      if (!window) return AAC_BITRATES;
+      // Anything wider than stereo gets the stereo window. The ceiling does
+      // keep rising with channel count — 6 channels at 48 kHz reached 555 kbps
+      // — but not by a factor this table could honestly extrapolate, and
+      // offering too little is the safe direction: the form never shows a value
+      // the encoder would rewrite behind the user's back.
+      const [min, max] = window[channels === 1 ? 0 : 1];
+      return AAC_BITRATES.filter((b) => b >= min && b <= max);
     },
     args(o, r) {
       const a = ['-c:a', 'aac', '-b:a', `${o.bitrate}k`];
