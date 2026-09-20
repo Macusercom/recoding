@@ -33,10 +33,6 @@
         <p class="drop-sub" data-i18n="dropSub">or click to choose one</p>
         <p class="drop-formats" data-i18n="dropFormats">MP3, WAV, FLAC, M4A, OGG, Opus, AIFF and anything else FFmpeg can read.</p>
       </div>
-      <div id="status" hidden>
-        <span id="status-text"></span>
-        <div class="progress-bar" id="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-      </div>
     </section>
 
     <section class="card" id="source-card" hidden>
@@ -58,6 +54,11 @@
       <p class="card-hint" data-i18n="settingsHint">Options that the chosen codec cannot do are disabled — hover one to see why.</p>
 
       <div class="field-grid" id="settings-grid"></div>
+
+      <details class="advanced" id="advanced" hidden>
+        <summary data-i18n="advancedTitle">Advanced options</summary>
+        <div class="field-grid" id="advanced-grid"></div>
+      </details>
 
       <p class="codec-note" id="codec-note" hidden></p>
 
@@ -100,6 +101,28 @@
     </p>
     <p class="footer-copyright" data-i18n="footerCopyright">© 2026 Macusercom</p>
   </footer>
+
+  <!-- Pinned to the viewport: a conversion is started from the settings card but
+       watched from anywhere, and results are compared by ear while scrolling. -->
+  <div id="dock" hidden>
+    <div class="dock-inner">
+      <div id="status" hidden>
+        <span id="status-text"></span>
+        <div class="progress-bar" id="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+
+      <div id="player-bar" hidden>
+        <button type="button" id="player-toggle" class="player-btn">&#9654;</button>
+        <div class="player-main">
+          <div class="player-name" id="player-name"></div>
+          <input type="range" id="player-seek" min="0" max="1000" value="0" step="1"
+                 data-i18n-aria="playerSeek" />
+        </div>
+        <div class="player-time"><span id="player-time">0:00</span> / <span id="player-duration">0:00</span></div>
+        <button type="button" id="player-close" class="player-btn" data-i18n-aria="playerClose">&#10005;</button>
+      </div>
+    </div>
+  </div>
 
   <div id="drop-overlay" data-i18n="dropOverlay" hidden>Drop the file to load it</div>
 

@@ -51,6 +51,7 @@ const EN = {
   fieldOpusCompression: 'Encoding effort',
   fieldAacCoder: 'Coding algorithm',
   fieldMp3Reservoir: 'Bit reservoir',
+  advancedTitle: 'Advanced options',
 
   keep: 'Keep original',
   rateCbr: 'Constant (CBR)',
@@ -89,6 +90,11 @@ const EN = {
   infoCompression: 'Higher means slower encoding and a smaller file. The audio is identical either way — FLAC is lossless.',
   infoEffort: 'Higher means the encoder works harder for the same bitrate. It affects encoding time, not the bitrate.',
   infoReservoir: 'Lets a difficult passage borrow bits from easier neighbouring frames. Turning it off makes frames strictly independent, at some cost in quality.',
+
+  playerPlay: 'Play',
+  playerPause: 'Pause',
+  playerSeek: 'Jump to a position',
+  playerClose: 'Close the player',
 
   convert: 'Convert',
   converting: 'Converting… $PCT$ %',
@@ -181,6 +187,7 @@ const DE = {
   fieldOpusCompression: 'Encoding-Aufwand',
   fieldAacCoder: 'Kodierungsalgorithmus',
   fieldMp3Reservoir: 'Bit-Reservoir',
+  advancedTitle: 'Erweiterte Optionen',
 
   keep: 'Original beibehalten',
   rateCbr: 'Konstant (CBR)',
@@ -219,6 +226,11 @@ const DE = {
   infoCompression: 'Höher bedeutet langsamer kodiert und kleinere Datei. Das Audiomaterial ist in beiden Fällen identisch — FLAC ist verlustfrei.',
   infoEffort: 'Höher bedeutet, dass der Encoder bei gleicher Bitrate mehr Aufwand betreibt. Das beeinflusst die Rechenzeit, nicht die Bitrate.',
   infoReservoir: 'Lässt eine schwierige Passage Bits von einfacheren Nachbarframes borgen. Ausgeschaltet sind die Frames strikt unabhängig, was etwas Qualität kostet.',
+
+  playerPlay: 'Abspielen',
+  playerPause: 'Pause',
+  playerSeek: 'An eine Stelle springen',
+  playerClose: 'Player schließen',
 
   convert: 'Umwandeln',
   converting: 'Wandle um… $PCT$ %',

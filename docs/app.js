@@ -92,6 +92,7 @@ function setStatus(text, fraction) {
     bar.classList.remove('indeterminate');
     $('progress-fill').style.width = `${Math.round(fraction * 100)}%`;
   }
+  syncDock();
 }
 
 function setError(text) {
@@ -100,12 +101,115 @@ function setError(text) {
   box.classList.add('error');
   $('status-text').textContent = text;
   $('progress-bar').hidden = true;
+  syncDock();
 }
 
 function clearStatus() {
   $('status').hidden = true;
   $('status').classList.remove('error');
+  syncDock();
 }
+
+// ---------------------------------------------------------------------------
+// Dock — conversion progress and playback, pinned to the bottom of the viewport
+// ---------------------------------------------------------------------------
+//
+// Both belong here for the same reason: they outlive the part of the page that
+// started them. A conversion is kicked off from the settings card but may run
+// for minutes while the user reads on, and results are compared by ear while
+// scrolling through the list.
+
+let currentAudio = null;
+let scrubbing = false;
+let dockShape = '';
+
+/** Shows or hides the dock, and keeps the page from ending up underneath it. */
+function syncDock() {
+  const statusOn = !$('status').hidden;
+  const playerOn = !$('player-bar').hidden;
+  // Measuring forces layout, so only do it when the dock actually changes shape
+  // — not on every progress tick or every timeupdate.
+  const shape = `${statusOn}|${playerOn}`;
+  if (shape === dockShape) return;
+  dockShape = shape;
+
+  const dock = $('dock');
+  dock.hidden = !(statusOn || playerOn);
+  document.body.style.paddingBottom = dock.hidden ? '' : `${dock.offsetHeight + 16}px`;
+}
+
+const PLAYER_EVENTS = ['timeupdate', 'durationchange', 'loadedmetadata', 'play', 'pause', 'ended'];
+
+/** Points the dock at one <audio> element, or at nothing. */
+function setCurrentAudio(el) {
+  if (currentAudio === el) return;
+  if (currentAudio) {
+    for (const type of PLAYER_EVENTS) currentAudio.removeEventListener(type, renderPlayer);
+  }
+  currentAudio = el;
+  if (currentAudio) {
+    for (const type of PLAYER_EVENTS) currentAudio.addEventListener(type, renderPlayer);
+  }
+  renderPlayer();
+}
+
+function renderPlayer() {
+  const bar = $('player-bar');
+  if (!currentAudio) {
+    bar.hidden = true;
+    syncDock();
+    return;
+  }
+  bar.hidden = false;
+
+  $('player-name').textContent = currentAudio.dataset.label || '';
+
+  const duration = Number.isFinite(currentAudio.duration) ? currentAudio.duration : 0;
+  const at = currentAudio.currentTime || 0;
+  $('player-time').textContent = formatDuration(at);
+  $('player-duration').textContent = duration ? formatDuration(duration) : '–';
+  // While a drag is in progress the slider is the source of truth, not the
+  // element, or every timeupdate would yank the thumb back.
+  if (!scrubbing) {
+    $('player-seek').value = duration ? String(Math.round((at / duration) * 1000)) : '0';
+  }
+
+  const toggle = $('player-toggle');
+  const label = msg(currentAudio.paused ? 'playerPlay' : 'playerPause');
+  toggle.textContent = currentAudio.paused ? '\u25B6' : '\u275A\u275A';
+  toggle.setAttribute('aria-label', label);
+  toggle.title = label;
+
+  syncDock();
+}
+
+/** The label the dock shows for a player — set where the element is created. */
+function labelAudio(el, text) {
+  el.dataset.label = text;
+  if (el === currentAudio) renderPlayer();
+}
+
+$('player-toggle').addEventListener('click', () => {
+  if (!currentAudio) return;
+  if (currentAudio.paused) currentAudio.play().catch(() => {});
+  else currentAudio.pause();
+});
+
+$('player-close').addEventListener('click', () => {
+  currentAudio?.pause();
+  setCurrentAudio(null);
+});
+
+$('player-seek').addEventListener('input', () => {
+  scrubbing = true;
+  if (currentAudio && Number.isFinite(currentAudio.duration)) {
+    currentAudio.currentTime = (Number($('player-seek').value) / 1000) * currentAudio.duration;
+  }
+});
+$('player-seek').addEventListener('change', () => { scrubbing = false; });
+
+// The dock's height is measured, so a reflow has to invalidate that reading.
+window.addEventListener('resize', () => { dockShape = ''; syncDock(); });
 
 // ---------------------------------------------------------------------------
 // Source
@@ -125,6 +229,7 @@ async function useFile(file) {
   $('source-card').hidden = false;
   $('source-name').textContent = file.name;
   $('source-audio').src = sourceUrl;
+  labelAudio($('source-audio'), file.name);
   $('source-warn').hidden = file.size < LARGE_FILE_BYTES;
   renderFacts();
   // Settings need the probed source before they can resolve "Keep".
@@ -283,6 +388,10 @@ function renderSettings() {
 function renderFields() {
   const grid = $('settings-grid');
   grid.textContent = '';
+  // Expert knobs live behind a disclosure: they change how the encoder works,
+  // not what the file is, and they were crowding the six settings that matter.
+  const advanced = $('advanced-grid');
+  advanced.textContent = '';
   const codec = CODECS[settings.codec];
   const info = source?.info;
 
@@ -404,7 +513,7 @@ function renderFields() {
 
   // --- codec extras ---
   if (codec.id === 'mp3') {
-    grid.append(field(
+    advanced.append(field(
       msg('fieldMp3Reservoir'),
       select(
         [{ value: 'on', label: msg('on') }, { value: 'off', label: msg('off') }],
@@ -414,7 +523,7 @@ function renderFields() {
       { info: msg('infoReservoir') },
     ));
   } else if (codec.id === 'aac') {
-    grid.append(field(
+    advanced.append(field(
       msg('fieldAacCoder'),
       select(
         [{ value: 'twoloop', label: msg('coderTwoloop') }, { value: 'fast', label: msg('coderFast') }],
@@ -435,7 +544,7 @@ function renderFields() {
         (v) => update('opusApplication', v),
       ),
     ));
-    grid.append(field(
+    advanced.append(field(
       msg('fieldOpusCompression'),
       select(
         numRange(0, 10).map((n) => ({ value: n, label: String(n) })),
@@ -455,6 +564,10 @@ function renderFields() {
       { info: msg('infoCompression') },
     ));
   }
+
+  // WAV, AIFF and ALAC expose nothing at this level, so the disclosure itself
+  // disappears rather than opening onto an empty grid.
+  $('advanced').hidden = advanced.children.length === 0;
 
   const note = $('codec-note');
   note.hidden = !codec.note;
@@ -476,7 +589,12 @@ function enqueueConversion() {
     opts: { ...settings },
   });
   updateQueueNote();
-  if (!converting) drain();
+  // drain() only reaches its first setStatus after an await, and the settings
+  // card may be well off screen by then. Put the dock up on the click itself.
+  if (!converting) {
+    setStatus(msg('converting', ['0']), 0);
+    drain();
+  }
 }
 
 function updateQueueNote() {
@@ -575,6 +693,7 @@ function playerFor(r) {
   audio.controls = true;
   audio.preload = 'metadata';
   audio.src = r.url;
+  audio.dataset.label = r.name;
   // canPlayType answers for the container and the codec, not for this exact
   // stream: a browser that claims audio/wav may still refuse a 32-bit float
   // one. The promise is a download link, never a dead player, so a decode
@@ -582,6 +701,7 @@ function playerFor(r) {
   audio.addEventListener('error', () => {
     r.playable = false;
     players.delete(r.id);
+    if (audio === currentAudio) setCurrentAudio(null);
     renderResults();
   }, { once: true });
 
@@ -596,6 +716,7 @@ document.addEventListener('play', (e) => {
   for (const el of document.querySelectorAll('audio')) {
     if (el !== e.target && !el.paused) el.pause();
   }
+  setCurrentAudio(e.target);
 }, true);
 
 function renderResults() {
@@ -697,6 +818,10 @@ function renderResults() {
 function removeResult(id) {
   const hit = results.find((r) => r.id === id);
   if (hit) URL.revokeObjectURL(hit.url);
+  if (players.get(id) === currentAudio) {
+    currentAudio.pause();
+    setCurrentAudio(null);
+  }
   players.delete(id);
   results = results.filter((r) => r.id !== id);
   renderResults();
@@ -704,6 +829,10 @@ function removeResult(id) {
 
 $('btn-clear-results').addEventListener('click', () => {
   for (const r of results) URL.revokeObjectURL(r.url);
+  if (currentAudio && currentAudio !== $('source-audio')) {
+    currentAudio.pause();
+    setCurrentAudio(null);
+  }
   players.clear();
   results = [];
   // Anything still queued is abandoned too; the job running right now has no
@@ -775,4 +904,5 @@ onLangChange(() => {
   if (source) { renderFacts(); renderSettings(); }
   renderResults();
   updateQueueNote();
+  renderPlayer();
 });
