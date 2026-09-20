@@ -118,12 +118,26 @@ function setError(text) {
   syncDock();
 }
 
+/**
+ * Winds the progress bar back to zero without animating it. Used wherever a run
+ * ends or begins: the bar is only ever allowed to grow on screen, never to be
+ * caught displaying a finished run's 100 %.
+ */
+function resetProgress() {
+  const fill = $('progress-fill');
+  fill.style.transition = 'none';
+  fill.style.width = '0%';
+  void fill.offsetWidth;             // land it before the transition comes back
+  fill.style.transition = '';
+}
+
 function clearStatus() {
   $('status').hidden = true;
   $('status').classList.remove('error');
-  // Wind the bar back while it is hidden, so the next conversion cannot show a
-  // frame of the finished one's 100 % before its own first update lands.
-  $('progress-fill').style.width = '0%';
+  // Both the bar and the words are stale the moment a run ends. Leaving either
+  // behind means the next run can be seen wearing them.
+  resetProgress();
+  $('status-text').textContent = '';
   syncDock();
 }
 
@@ -609,17 +623,19 @@ let nextId = 1;
 
 function enqueueConversion() {
   if (!source?.info) return;
+  // Announced before the job joins the queue, so "N more queued" counts the
+  // other jobs waiting rather than including this one.
+  const starting = !converting;
+  if (starting) showConverting(0);
+
   pending.push({
     source,
     opts: { ...settings },
   });
   updateQueueNote();
-  // drain() only reaches its first setStatus after an await, and the settings
-  // card may be well off screen by then. Put the dock up on the click itself.
-  if (!converting) {
-    showConverting(0);
-    drain();
-  }
+  // drain() only reaches its first status update after an await, and the
+  // settings card may be well off screen by then. Put the dock up on the click.
+  if (starting) drain();
 }
 
 /**
@@ -627,6 +643,7 @@ function enqueueConversion() {
  * queued job looks exactly like the first one starting over.
  */
 function showConverting(fraction) {
+  if (fraction === 0) resetProgress();
   const pct = String(Math.round(fraction * 100));
   const waiting = pending.length;
   setStatus(
