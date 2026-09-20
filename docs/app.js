@@ -165,8 +165,11 @@ function syncDock() {
   dockShape = shape;
 
   const dock = $('dock');
-  dock.hidden = !(statusOn || playerOn);
-  document.body.style.paddingBottom = dock.hidden ? '' : `${dock.offsetHeight + 16}px`;
+  const show = statusOn || playerOn;
+  dock.classList.toggle('on', show);
+  // visibility:hidden keeps the box measurable, unlike display:none, so the
+  // height is available whether the dock is up or not.
+  document.body.style.paddingBottom = show ? `${dock.offsetHeight + 16}px` : '';
 }
 
 const PLAYER_EVENTS = ['timeupdate', 'durationchange', 'loadedmetadata', 'play', 'pause', 'ended'];

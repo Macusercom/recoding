@@ -381,6 +381,11 @@ footer {
 
 /* ---------- docked status and player ---------- */
 
+/* The dock is never taken out of the document. backdrop-filter promotes it to
+   its own compositing layer, and toggling `hidden` tore that layer down and
+   rebuilt it — on the way back the compositor could present one frame of the
+   layer's previous contents, which is how a finished run's "100 %" reappeared
+   at the start of the next one. Sliding it with opacity keeps one stable layer. */
 #dock {
   position: fixed;
   left: 0; right: 0; bottom: 0;
@@ -389,6 +394,21 @@ footer {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--grid);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(100%);
+  transition: transform 160ms ease, opacity 160ms ease, visibility 0s linear 160ms;
+}
+#dock.on {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  transition: transform 160ms ease, opacity 160ms ease, visibility 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+  #dock, #dock.on { transition: none; }
 }
 .dock-inner {
   max-width: var(--wrap);
