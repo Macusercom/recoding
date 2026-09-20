@@ -430,7 +430,12 @@ footer {
   display: block;
   width: 100%; height: 4px;
   margin: 7px 0 0; padding: 0;
-  background: var(--grid);
+  /* The elapsed part is painted into the track itself: a range input gives no
+     way to style the two sides of the thumb, and ::-moz-range-progress only
+     exists in one engine. --played is the percentage, set from renderPlayer. */
+  background: linear-gradient(to right,
+    var(--accent) 0%, var(--accent) calc(var(--played, 0) * 1%),
+    var(--grid) calc(var(--played, 0) * 1%), var(--grid) 100%);
   border: 0; border-radius: 2px;
   cursor: pointer;
 }

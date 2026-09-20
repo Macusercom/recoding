@@ -85,12 +85,26 @@ function setStatus(text, fraction) {
   $('status-text').textContent = text;
   const bar = $('progress-bar');
   bar.hidden = false;
+  const fill = $('progress-fill');
   if (fraction == null) {
     bar.classList.add('indeterminate');
-    $('progress-fill').style.width = '';
+    fill.style.width = '';
   } else {
     bar.classList.remove('indeterminate');
-    $('progress-fill').style.width = `${Math.round(fraction * 100)}%`;
+    const pct = Math.round(fraction * 100);
+    // .progress-fill animates its width, which is right on the way up and wrong
+    // on the way down: a fresh run starting at 0 while the bar still sits at the
+    // last run's 100 % would sweep visibly backwards before it began. A decrease
+    // is therefore applied with the transition switched off.
+    const previous = parseFloat(fill.style.width);
+    if (Number.isFinite(previous) && pct < previous) {
+      fill.style.transition = 'none';
+      fill.style.width = `${pct}%`;
+      void fill.offsetWidth;           // land it before the transition comes back
+      fill.style.transition = '';
+    } else {
+      fill.style.width = `${pct}%`;
+    }
   }
   syncDock();
 }
@@ -107,6 +121,9 @@ function setError(text) {
 function clearStatus() {
   $('status').hidden = true;
   $('status').classList.remove('error');
+  // Wind the bar back while it is hidden, so the next conversion cannot show a
+  // frame of the finished one's 100 % before its own first update lands.
+  $('progress-fill').style.width = '0%';
   syncDock();
 }
 
@@ -173,6 +190,7 @@ function renderPlayer() {
   if (!scrubbing) {
     $('player-seek').value = duration ? String(Math.round((at / duration) * 1000)) : '0';
   }
+  paintSeek();
 
   const toggle = $('player-toggle');
   const label = msg(currentAudio.paused ? 'playerPlay' : 'playerPause');
@@ -189,6 +207,12 @@ function labelAudio(el, text) {
   if (el === currentAudio) renderPlayer();
 }
 
+/** Colours the played part of the seek bar up to the thumb. */
+function paintSeek() {
+  const seek = $('player-seek');
+  seek.style.setProperty('--played', String(Number(seek.value) / 10));
+}
+
 $('player-toggle').addEventListener('click', () => {
   if (!currentAudio) return;
   if (currentAudio.paused) currentAudio.play().catch(() => {});
@@ -202,6 +226,7 @@ $('player-close').addEventListener('click', () => {
 
 $('player-seek').addEventListener('input', () => {
   scrubbing = true;
+  paintSeek();
   if (currentAudio && Number.isFinite(currentAudio.duration)) {
     currentAudio.currentTime = (Number($('player-seek').value) / 1000) * currentAudio.duration;
   }
@@ -592,9 +617,22 @@ function enqueueConversion() {
   // drain() only reaches its first setStatus after an await, and the settings
   // card may be well off screen by then. Put the dock up on the click itself.
   if (!converting) {
-    setStatus(msg('converting', ['0']), 0);
+    showConverting(0);
     drain();
   }
+}
+
+/**
+ * Conversion progress, with the queue depth alongside it. Without that, a second
+ * queued job looks exactly like the first one starting over.
+ */
+function showConverting(fraction) {
+  const pct = String(Math.round(fraction * 100));
+  const waiting = pending.length;
+  setStatus(
+    waiting ? `${msg('converting', [pct])} · ${msg('convertQueued', [waiting])}` : msg('converting', [pct]),
+    fraction,
+  );
 }
 
 function updateQueueNote() {
@@ -616,10 +654,8 @@ async function drain() {
       await ensureMounted(src.file);
       const { args, resolved } = buildArgs(opts, src.info, engine.sourcePath(), outPath);
 
-      setStatus(msg('converting', ['0']), 0);
-      const { data } = await engine.convert(args, outPath, (frac) => {
-        setStatus(msg('converting', [String(Math.round(frac * 100))]), frac);
-      });
+      showConverting(0);
+      const { data } = await engine.convert(args, outPath, (frac) => showConverting(frac));
 
       addResult({ job, resolved, args, data });
       clearStatus();
