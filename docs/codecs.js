@@ -39,10 +39,18 @@ const AAC_BITRATES = [8, 16, 24, 32, 48, 64, 80, 96, 112, 128, 160, 192, 224, 25
 // ask for 320 and it quietly makes ~222. Both limits move with the sample rate
 // *and* the channel count, which is why this is a table and not a range.
 //
-// Measured against this build on 30 s of pink noise, accepting a value when the
-// encoded file came back within ~3 % of what was asked. The ceiling is a
-// property of the encoder, not of the material: pink noise, white noise and a
-// dense harmonic mix all landed within 1 kbps of each other at 44.1 kHz stereo.
+// Measured against this build on 30 s of pink noise *and* on real recordings,
+// and a value is offered only if both came back within 6 % of it. Both were
+// needed: the ceiling depends on the material, in both directions. At 48 kHz
+// mono, noise reached 219 kbps while real audio stopped near 200, so 224 had to
+// go; at 48 kHz stereo real audio reached 256 cleanly. FFmpeg 9.0.1's own aac
+// encoder tops out in the same place, so a newer core would not change this —
+// Apple's AudioToolbox encoder does reach 320 at 44.1 kHz, which is how we know
+// the limit is FFmpeg's encoder and not AAC.
+//
+// Only a shortfall disqualifies a value. In mono at the low sample rates, real
+// audio comes back 7-16 % *over* the target (32 kbps at 8 kHz gives ~37); more
+// than you asked for is not a broken promise, so those rows stand.
 const AAC_WINDOW = {
   //          mono        stereo
   7350:  [[8, 32],    [8, 32]],
@@ -54,7 +62,7 @@ const AAC_WINDOW = {
   24000: [[16, 96],   [16, 112]],
   32000: [[16, 128],  [16, 160]],
   44100: [[16, 192],  [24, 224]],
-  48000: [[16, 224],  [24, 224]],
+  48000: [[16, 192],  [24, 256]],
   // 64 kHz mono is the one row that is not simply clamped at the top: above
   // 224 the encoder *overshoots* instead (256 came back as 294), so the usable
   // range ends earlier there than the raw ceiling of 360 kbps suggests.
@@ -103,7 +111,11 @@ export const CODECS = {
       if (o.rateMode === 'vbr') a.push('-q:a', String(o.quality));
       else if (o.rateMode === 'abr') a.push('-abr', '1', '-b:a', `${o.bitrate}k`);
       else a.push('-b:a', `${o.bitrate}k`);
-      if (r.channels === 2) a.push('-joint_stereo', bool(r.joint));
+      // Only when asked. LAME's own default is joint stereo, and "Keep original"
+      // used to pass -joint_stereo 0 here — quietly forcing plain L/R on every
+      // default conversion, which costs quality at ordinary bitrates. AAC and
+      // FLAC already left the choice to the encoder on "Keep"; now MP3 does too.
+      if (r.channels === 2 && r.jointExplicit) a.push('-joint_stereo', bool(r.joint));
       a.push('-reservoir', bool(o.mp3Reservoir));
       return a;
     },
