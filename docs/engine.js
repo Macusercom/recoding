@@ -240,7 +240,13 @@ export async function convert(args, outputPath, onProgress) {
 
   let code;
   try {
-    code = await instance.exec(args);
+    // The core is one long-lived module, and ffmpeg's log level is global state
+    // in it: probe() runs ffprobe with -v error, and that level carried over
+    // into every conversion after it. The end-of-run report audioPayload()
+    // reads is logged at info level, so it silently vanished. Every run now
+    // states its own level; info is ffmpeg's default, so this changes nothing
+    // about the file.
+    code = await instance.exec(['-loglevel', 'info', ...args]);
   } catch (e) {
     // A trap inside the wasm — most likely out of memory on a long file —
     // leaves the heap in a state nothing can recover. Throw the worker away so
@@ -267,17 +273,46 @@ export async function convert(args, outputPath, onProgress) {
 
   // readFile hands back a view into the heap; copy it out before the next run
   // grows or reuses that memory. `seconds` is null when ffmpeg reported no time.
-  return { data: new Uint8Array(data), log, seconds: outputMicros ? outputMicros / 1e6 : null };
+  return {
+    data: new Uint8Array(data),
+    log,
+    seconds: outputMicros ? outputMicros / 1e6 : null,
+    audioBytes: audioPayload(logLines, data.length),
+  };
 }
 
 export function workDir() {
   return WORK_DIR;
 }
 
+/**
+ * How many bytes of the output are encoded audio, as opposed to tags and
+ * container structure (MP4 index, Ogg page headers, the MP3 tag frame).
+ *
+ * ffmpeg reports this itself at the end of every run — "audio:4751kB …
+ * muxing overhead: 0.769777%" — and it counts exactly the packets it wrote:
+ * size ÷ (1 + overhead) matched ffprobe's packet-by-packet sum to the byte for
+ * every format here. The overhead is small for most (0.01–0.8 %) but reaches
+ * ~6 % for Opus at 12 kbps, which is enough to misstate a result. The kB figure
+ * is only a fallback: it is rounded to whole KiB, too coarse for a short file.
+ */
+function audioPayload(lines, fileBytes) {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const pct = lines[i].match(/muxing overhead: ([0-9.]+)%/);
+    if (pct) return Math.round(fileBytes / (1 + Number(pct[1]) / 100));
+    const kib = lines[i].match(/\baudio:\s*([0-9]+)kB/);
+    if (kib) return Number(kib[1]) * 1024;
+  }
+  return null;
+}
+
 /** The most specific ffmpeg complaint in the tail of the log, for the UI. */
 function lastError(lines) {
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
+    // ffmpeg's closing verdict says that it failed, never why. At error level it
+    // was not logged at all; at info level it is always last, so it would win.
+    if (/^Conversion failed!?$/.test(line.trim())) continue;
     if (/not supported|Invalid|Error|error|Unable|failed/.test(line)) {
       return line.replace(/^\[[^\]]+\]\s*/, '').trim();
     }

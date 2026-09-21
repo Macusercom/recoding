@@ -683,9 +683,9 @@ async function drain() {
       const { args, resolved } = buildArgs(opts, src.info, engine.sourcePath(), outPath);
 
       showConverting(0);
-      const { data, seconds } = await engine.convert(args, outPath, (frac) => showConverting(frac));
+      const { data, seconds, audioBytes } = await engine.convert(args, outPath, (frac) => showConverting(frac));
 
-      addResult({ job, resolved, args, data, seconds });
+      addResult({ job, resolved, args, data, seconds, audioBytes });
       clearStatus();
     } catch (e) {
       setError(msg('convertError', [e?.message || String(e)]));
@@ -705,28 +705,33 @@ async function drain() {
 
 let results = [];
 
-function addResult({ job, resolved, args, data, seconds }) {
+function addResult({ job, resolved, args, data, seconds, audioBytes }) {
   const { source: src, opts } = job;
   const codec = resolved.codec;
   const blob = new Blob([data], { type: codec.mime });
-  // What the file really averages: its size over its own playing time. The
+  // The audio bitrate the encoder actually produced: encoded audio bytes — not
+  // tags, not container structure — over the output's own playing time. The
   // source's probed duration is only a fallback, because for some formats it is
-  // an estimate.
+  // an estimate; the file size is only a fallback for the payload.
   const playing = seconds || src.info?.duration || 0;
+  const payload = audioBytes || blob.size;
   results.unshift({
     id: nextId++,
     name: outputName(src.name, opts, resolved),
     sourceName: src.name,
     sourceSize: src.size,
     size: blob.size,
-    actualKbps: playing ? (blob.size * 8) / playing / 1000 : null,
+    actualKbps: playing ? (payload * 8) / playing / 1000 : null,
     blob,
     url: URL.createObjectURL(blob),
     codec,
     opts,
     resolved,
     // "ffmpeg" plus the argv as run. exec() prepends -nostdin -y itself, which
-    // is shown so the printed line matches what actually ran.
+    // is shown so the printed line matches what actually ran. The engine also
+    // pins -loglevel info — ffmpeg's own default — which is left out: it only
+    // undoes state shared with the probe, and the line reproduces the same file
+    // in any ffmpeg without it.
     command: ['ffmpeg', '-nostdin', '-y', ...args].map(quoteArg).join(' '),
   });
   renderResults();

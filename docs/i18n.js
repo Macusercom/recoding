@@ -118,7 +118,7 @@ const EN = {
   noPlayback: 'This browser cannot play $FORMAT$ — the file is fine, download it to play it elsewhere.',
   sizeDelta: '$PCT$ % of the source',
   actualBitrate: 'actual $N$ kbps',
-  actualBitrateInfo: 'Average bitrate of the finished file: its size divided by its playing time.',
+  actualBitrateInfo: 'Average bitrate of the encoded audio itself — without tags or container overhead — over its playing time.',
   actualBitrateOff: 'Set to $SET$ kbps, but the encoder delivered $ACTUAL$ kbps on this material.',
   fromSource: 'from $NAME$',
 
@@ -263,7 +263,7 @@ const DE = {
   noPlayback: 'Dieser Browser kann $FORMAT$ nicht abspielen — die Datei ist in Ordnung, lade sie herunter, um sie anderswo abzuspielen.',
   sizeDelta: '$PCT$ % der Quelle',
   actualBitrate: 'tatsächlich $N$ kbps',
-  actualBitrateInfo: 'Durchschnittliche Bitrate der fertigen Datei: ihre Größe geteilt durch ihre Spieldauer.',
+  actualBitrateInfo: 'Durchschnittliche Bitrate des kodierten Audios selbst — ohne Tags und Container-Overhead — über die Spieldauer.',
   actualBitrateOff: 'Eingestellt waren $SET$ kbps, der Encoder hat bei diesem Material $ACTUAL$ kbps geliefert.',
   fromSource: 'aus $NAME$',
 
