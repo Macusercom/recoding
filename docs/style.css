@@ -489,6 +489,10 @@ footer {
 .player-mute:hover:not(:disabled) { color: var(--ink); background: var(--surface); }
 .player-mute svg { display: block; }
 .player-mute .vol-x { display: none; }
+/* Silent reads as a warning, including on hover, which would otherwise turn it
+   back to plain ink. */
+.player-mute.muted,
+.player-mute.muted:hover:not(:disabled) { color: var(--critical); }
 .player-mute.muted .vol-waves { display: none; }
 .player-mute.muted .vol-x { display: inline; }
 .player-mute.low .vol-wave-outer { display: none; }
