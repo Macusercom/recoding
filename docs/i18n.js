@@ -102,6 +102,9 @@ const EN = {
   playerPause: 'Pause',
   playerSeek: 'Jump to a position',
   playerClose: 'Close the player',
+  playerVolume: 'Volume',
+  playerMute: 'Mute',
+  playerUnmute: 'Unmute',
 
   convert: 'Convert',
   converting: 'Converting… $PCT$ %',
@@ -248,6 +251,9 @@ const DE = {
   playerPause: 'Pause',
   playerSeek: 'An eine Stelle springen',
   playerClose: 'Player schließen',
+  playerVolume: 'Lautstärke',
+  playerMute: 'Stummschalten',
+  playerUnmute: 'Ton an',
 
   convert: 'Umwandeln',
   converting: 'Wandle um… $PCT$ %',

@@ -179,10 +179,15 @@ function setCurrentAudio(el) {
   if (currentAudio === el) return;
   if (currentAudio) {
     for (const type of PLAYER_EVENTS) currentAudio.removeEventListener(type, renderPlayer);
+    currentAudio.removeEventListener('volumechange', adoptVolume);
   }
   currentAudio = el;
   if (currentAudio) {
     for (const type of PLAYER_EVENTS) currentAudio.addEventListener(type, renderPlayer);
+    currentAudio.addEventListener('volumechange', adoptVolume);
+    // Whatever starts playing is held to the dock's level, so switching between
+    // two results to compare them never also switches loudness.
+    applyVolume(currentAudio);
   }
   renderPlayer();
 }
@@ -249,6 +254,98 @@ $('player-seek').addEventListener('input', () => {
   }
 });
 $('player-seek').addEventListener('change', () => { scrubbing = false; });
+
+// ---- volume ----
+
+const VOLUME_KEY = 'recoding-volume';
+let volume = 1;        // 0…1, the level every player is held to
+let muted = false;
+
+// iOS Safari leaves media volume to the hardware buttons: assigning .volume is
+// silently ignored and it reads back as 1. Only muting is honoured there, so the
+// slider is hidden rather than offered as a control that does nothing.
+const volumeSettable = (() => {
+  try {
+    const probe = document.createElement('audio');
+    probe.volume = 0.5;
+    return probe.volume === 0.5;
+  } catch {
+    return false;
+  }
+})();
+
+function loadVolume() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(VOLUME_KEY) || 'null');
+    if (stored && Number.isFinite(stored.level)) {
+      volume = Math.min(1, Math.max(0, stored.level));
+      muted = Boolean(stored.muted);
+    }
+  } catch {
+    // Unavailable or corrupt storage — full volume, unmuted.
+  }
+}
+
+function saveVolume() {
+  try { localStorage.setItem(VOLUME_KEY, JSON.stringify({ level: volume, muted })); } catch {}
+}
+
+/** Holds one element to the dock's level. */
+function applyVolume(el) {
+  if (!el) return;
+  if (volumeSettable) el.volume = volume;
+  el.muted = muted;
+}
+
+function renderVolume() {
+  const slider = $('player-volume');
+  slider.hidden = !volumeSettable;
+  // Muted reads as an empty bar, and unmuting brings the old level back.
+  const shown = Math.round((muted ? 0 : volume) * 100);
+  slider.value = String(shown);
+  slider.style.setProperty('--played', String(shown));
+
+  const button = $('player-mute');
+  const silent = muted || volume === 0;
+  button.classList.toggle('muted', silent);
+  button.classList.toggle('low', !silent && volume < 0.5);
+  const label = msg(muted ? 'playerUnmute' : 'playerMute');
+  button.setAttribute('aria-label', label);
+  button.setAttribute('aria-pressed', String(muted));
+  button.title = label;
+}
+
+/** A player's own native control was used: that level becomes everyone's. */
+function adoptVolume() {
+  if (!currentAudio) return;
+  const level = volumeSettable ? currentAudio.volume : volume;
+  // Our own applyVolume() echoes back as a volumechange; nothing to adopt then.
+  if (level === volume && currentAudio.muted === muted) return;
+  volume = level;
+  muted = currentAudio.muted;
+  renderVolume();
+  saveVolume();
+}
+
+$('player-volume').addEventListener('input', () => {
+  volume = Number($('player-volume').value) / 100;
+  muted = false;                          // reaching for the slider means "let me hear it"
+  applyVolume(currentAudio);
+  renderVolume();
+  saveVolume();
+});
+
+$('player-mute').addEventListener('click', () => {
+  muted = !muted;
+  // Unmuting at zero would be a button that does nothing audible.
+  if (!muted && volume === 0) volume = 0.5;
+  applyVolume(currentAudio);
+  renderVolume();
+  saveVolume();
+});
+
+loadVolume();
+renderVolume();
 
 // The dock's height is measured, so a reflow has to invalidate that reading.
 window.addEventListener('resize', () => { dockShape = ''; syncDock(); });
@@ -604,7 +701,9 @@ function renderFields() {
       { info: msg('infoEffort') },
     ));
   } else if (codec.id === 'flac') {
-    grid.append(field(
+    // Advanced like the others: the level trades encoding time for size and
+    // never touches the audio.
+    advanced.append(field(
       msg('fieldFlacCompression'),
       select(
         numRange(0, 12).map((n) => ({ value: n, label: String(n) })),
@@ -1004,4 +1103,5 @@ onLangChange(() => {
   renderResults();
   updateQueueNote();
   renderPlayer();
+  renderVolume();
 });

@@ -446,35 +446,52 @@ footer {
   font-variant-numeric: tabular-nums;
 }
 
-/* The seek bar is drawn to match .progress-bar rather than the native control,
-   which ignores the palette entirely. */
-#player-seek {
+/* Seek and volume are drawn to match .progress-bar rather than the native
+   control, which ignores the palette entirely. */
+.player-range {
   -webkit-appearance: none; appearance: none;
   display: block;
   width: 100%; height: 4px;
-  margin: 7px 0 0; padding: 0;
-  /* The elapsed part is painted into the track itself: a range input gives no
+  margin: 0; padding: 0;
+  /* The filled part is painted into the track itself: a range input gives no
      way to style the two sides of the thumb, and ::-moz-range-progress only
-     exists in one engine. --played is the percentage, set from renderPlayer. */
+     exists in one engine. --played is the percentage, set from app.js. */
   background: linear-gradient(to right,
     var(--accent) 0%, var(--accent) calc(var(--played, 0) * 1%),
     var(--grid) calc(var(--played, 0) * 1%), var(--grid) 100%);
   border: 0; border-radius: 2px;
   cursor: pointer;
 }
-#player-seek::-webkit-slider-thumb {
+.player-range::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 12px; height: 12px;
   border: 0; border-radius: 50%;
   background: var(--accent);
   cursor: pointer;
 }
-#player-seek::-moz-range-thumb {
+.player-range::-moz-range-thumb {
   width: 12px; height: 12px;
   border: 0; border-radius: 50%;
   background: var(--accent);
   cursor: pointer;
 }
+
+#player-seek { margin-top: 7px; }
+
+.player-volume { flex: none; display: flex; align-items: center; gap: 4px; }
+#player-volume { width: 84px; }
+.player-mute {
+  width: 32px; height: 32px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; border-color: transparent; background: transparent;
+  color: var(--ink-2);
+}
+.player-mute:hover:not(:disabled) { color: var(--ink); background: var(--surface); }
+.player-mute svg { display: block; }
+.player-mute .vol-x { display: none; }
+.player-mute.muted .vol-waves { display: none; }
+.player-mute.muted .vol-x { display: inline; }
+.player-mute.low .vol-wave-outer { display: none; }
 
 /* ---------- narrow screens ---------- */
 
@@ -487,4 +504,6 @@ footer {
   .result-actions a.download { flex: 1; text-align: center; }
   .dock-inner { padding: 10px 14px 12px; gap: 10px; }
   .player-time { display: none; }
+  /* A phone has volume buttons, and the row has no room to spare; mute stays. */
+  #player-volume { display: none; }
 }

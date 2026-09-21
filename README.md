@@ -35,8 +35,8 @@ A privacy-first web app that converts audio to MP3, AAC, Opus, FLAC, ALAC, WAV o
 - Queue several conversions while one is running; remove one result or clear them all
 - Formats the browser cannot play fall back to a download link and a note, never a dead player — including a stream whose container the browser accepts but whose bit depth it cannot decode
 - Only one file plays at a time: starting a player pauses every other one, so two encodes can never overlap
-- A docked bar at the bottom of the window keeps both the conversion progress and the current track in view, however far you scroll — with play/pause, elapsed time and a seek bar
-- Encoder-level knobs (MP3 bit reservoir, AAC coding algorithm, Opus encoding effort) sit behind an **Advanced options** disclosure, so the main form stays the six settings that matter
+- A docked bar at the bottom of the window keeps both the conversion progress and the current track in view, however far you scroll — with play/pause, elapsed time, a seek bar and a volume control that every player follows, so switching results to compare them never changes loudness
+- Encoder-level knobs (MP3 bit reservoir, AAC coding algorithm, Opus encoding effort, FLAC compression level) sit behind an **Advanced options** disclosure, so the main form stays the six settings that matter
 - German and English UI, follows your browser language
 - No audio or data ever leaves your machine
 
