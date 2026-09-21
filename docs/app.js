@@ -79,10 +79,6 @@ function shortName(name, max = 40) {
 // ---------------------------------------------------------------------------
 
 function setStatus(text, fraction) {
-  if (engine.DEBUG) {
-    console.log(`[recoding] ${performance.now().toFixed(0)}ms setStatus "${text}" fraction=${fraction} `
-      + `inlineWidth=${$('progress-fill').style.width} computed=${getComputedStyle($('progress-fill')).width}`);
-  }
   const box = $('status');
   box.hidden = false;
   box.classList.remove('error');
@@ -136,7 +132,6 @@ function resetProgress() {
 }
 
 function clearStatus() {
-  if (engine.DEBUG) console.log(`[recoding] ${performance.now().toFixed(0)}ms clearStatus`);
   $('status').hidden = true;
   $('status').classList.remove('error');
   // Both the bar and the words are stale the moment a run ends. Leaving either
@@ -450,6 +445,7 @@ function renderFields() {
       settings.codec,
       (v) => update('codec', v),
     ),
+    { info: msg('infoFormat') },
   ));
 
   // --- bitrate mode ---
@@ -471,7 +467,7 @@ function renderFields() {
       ),
       codec.rateModes.length === 1
         ? { disabledReason: msg('naRateMode', [codec.label]) }
-        : {},
+        : { info: msg('infoRateMode') },
     ));
   }
 
@@ -525,6 +521,7 @@ function renderFields() {
         settings.sampleRate,
         (v) => update('sampleRate', v === KEEP ? KEEP : Number(v)),
       ),
+      { info: msg('infoSampleRate') },
     ));
   }
 
@@ -537,6 +534,7 @@ function renderFields() {
         settings.bitDepth,
         (v) => update('bitDepth', v === KEEP || v === FLOAT ? v : Number(v)),
       ),
+      { info: msg('infoBitDepth') },
     ));
   } else {
     grid.append(field(msg('fieldBitDepth'), select([{ value: '', label: '—' }], '', () => {}), {
@@ -555,8 +553,11 @@ function renderFields() {
     codec.joint || settings.channels !== 'joint' ? settings.channels : KEEP,
     (v) => update('channels', v),
   );
-  grid.append(field(msg('fieldChannels'), channelControl,
-    codec.joint ? {} : { info: msg(codec.jointNote) }));
+  // Codecs without a joint stereo switch keep their own explanation, appended to
+  // the general one rather than replacing it.
+  grid.append(field(msg('fieldChannels'), channelControl, {
+    info: codec.joint ? msg('infoChannels') : `${msg('infoChannels')}\n\n${msg(codec.jointNote)}`,
+  }));
 
   // --- codec extras ---
   if (codec.id === 'mp3') {
@@ -577,6 +578,7 @@ function renderFields() {
         settings.aacCoder,
         (v) => update('aacCoder', v),
       ),
+      { info: msg('infoAacCoder') },
     ));
   } else if (codec.id === 'opus') {
     grid.append(field(
@@ -590,6 +592,7 @@ function renderFields() {
         settings.opusApplication,
         (v) => update('opusApplication', v),
       ),
+      { info: msg('infoOpusApplication') },
     ));
     advanced.append(field(
       msg('fieldOpusCompression'),

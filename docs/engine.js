@@ -13,9 +13,6 @@ import { fetchFile } from './vendor/util/index.js';
 const CORE_URL = new URL('vendor/core/ffmpeg-core.js', import.meta.url).href;
 const WASM_URL = new URL('vendor/core/ffmpeg-core.wasm', import.meta.url).href;
 
-// Temporary: add ?debug to the URL to trace progress and status in the console.
-export const DEBUG = typeof location !== 'undefined' && location.search.includes('debug');
-
 const MOUNT_POINT = '/src';
 const WORK_DIR = '/work';
 
@@ -31,6 +28,33 @@ let logLines = [];
 // exec() and ffprobe() share one worker, so progress events have to be routed
 // to whichever job is running rather than broadcast.
 let activeProgress = null;
+// Whether this run has produced a figure that could plausibly be progress. See
+// normalizeProgress: until it has, a report at or past the finish line is not
+// believable.
+let sawRealProgress = false;
+
+// ffmpeg reports progress as elapsed time divided by the input's duration. On a
+// large file — mounted through WORKERFS and read lazily — the first report can
+// land before the duration has been established, and the quotient comes back
+// enormous: 6.4e9 was measured on a real conversion. Clamping that into range
+// turns it into a confident 100 %, which is how a fresh run briefly painted a
+// finished bar before snapping back to 2 %.
+//
+// The honest reading is that such a figure carries no information at all, so it
+// is dropped rather than clamped. The small overshoot ffmpeg really does produce
+// at the tail (1.115 measured) is still clamped, because by then the run has
+// reported enough to be believed.
+const MAX_OVERSHOOT = 1.5;
+
+/** What a raw progress figure should move the bar to, or null to ignore it. */
+export function normalizeProgress(raw, seenReal) {
+  if (!Number.isFinite(raw) || raw < 0) return null;
+  if (raw > MAX_OVERSHOOT) return null;
+  // A run does not open at the finish line; that is a duration that is not known
+  // yet, not a conversion that is already done.
+  if (raw > 1 && !seenReal) return null;
+  return Math.min(1, raw);
+}
 
 export class EngineError extends Error {
   constructor(message, log) {
@@ -53,11 +77,11 @@ export function load(onStatus) {
       if (logLines.length > LOG_LIMIT) logLines.shift();
     });
     instance.on('progress', ({ progress }) => {
-      if (DEBUG) console.log(`[recoding] ${performance.now().toFixed(0)}ms raw progress=${progress} active=${!!activeProgress}`);
-      if (activeProgress && Number.isFinite(progress)) {
-        // ffmpeg overshoots slightly at the tail; clamping keeps the bar sane.
-        activeProgress(Math.max(0, Math.min(1, progress)));
-      }
+      if (!activeProgress) return;
+      const value = normalizeProgress(progress, sawRealProgress);
+      if (value === null) return;
+      if (progress <= 1) sawRealProgress = true;
+      activeProgress(value);
     });
 
     onStatus?.();
@@ -205,6 +229,7 @@ export async function convert(args, outputPath, onProgress) {
   const instance = await load();
   logLines = [];
   activeProgress = onProgress || null;
+  sawRealProgress = false;
 
   let code;
   try {
