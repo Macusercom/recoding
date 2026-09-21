@@ -525,6 +525,7 @@ function renderSettings() {
 }
 
 function renderFields() {
+  hideTip();
   const grid = $('settings-grid');
   grid.textContent = '';
   // Expert knobs live behind a disclosure: they change how the encoder works,
@@ -900,6 +901,7 @@ document.addEventListener('play', (e) => {
 }, true);
 
 function renderResults() {
+  hideTip();
   const list = $('results-list');
   list.textContent = '';
   $('results-card').hidden = results.length === 0;
@@ -1041,6 +1043,67 @@ $('btn-clear-results').addEventListener('click', () => {
 });
 
 $('btn-convert').addEventListener('click', enqueueConversion);
+
+// ---------------------------------------------------------------------------
+// Explanations on touch screens
+// ---------------------------------------------------------------------------
+//
+// Every explanation in the form lives in a title attribute: the ⓘ icons, the
+// reason a field is disabled, and what the actual-bitrate chip is measuring. A
+// mouse shows a title on hover; a touch screen never shows it at all, so on a
+// phone all of them were silent. Where there is no hover, a tap opens the same
+// text in a small bubble instead. With a mouse the native tooltip stays.
+
+// A disabled field is an anchor as a whole: phones send no taps to a disabled
+// control, so style.css lets them fall through to the field around it.
+const TIP_ANCHORS = '.info, .chip.actual, .field.off';
+let tip = null;
+let tipAnchor = null;
+
+function showTip(anchor, text) {
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.className = 'tip';
+    tip.setAttribute('role', 'tooltip');
+    document.body.append(tip);
+  }
+  tip.textContent = text;
+  tip.hidden = false;
+  tipAnchor = anchor;
+
+  // Centred under the anchor, kept inside the screen, and flipped above it when
+  // there is no room below — the dock may be sitting there.
+  const a = anchor.getBoundingClientRect();
+  const w = tip.offsetWidth;
+  const h = tip.offsetHeight;
+  const left = Math.max(12, Math.min(a.left + a.width / 2 - w / 2, window.innerWidth - w - 12));
+  let top = a.bottom + 8;
+  if (top + h > window.innerHeight - 12) top = Math.max(12, a.top - h - 8);
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
+}
+
+function hideTip() {
+  if (tip) tip.hidden = true;
+  tipAnchor = null;
+}
+
+document.addEventListener('click', (e) => {
+  if (!window.matchMedia?.('(hover: none)')?.matches) return;
+  const anchor = e.target.closest?.(TIP_ANCHORS);
+  // A disabled field keeps its reason on its label.
+  const text = anchor && (anchor.title || anchor.querySelector('label')?.title);
+  if (!text || anchor === tipAnchor) {
+    hideTip();
+    return;
+  }
+  // A tap on a label would otherwise open its select, and the point was to read
+  // why it is the way it is.
+  e.preventDefault();
+  showTip(anchor, text);
+});
+// A bubble left floating over content that has scrolled away points at nothing.
+window.addEventListener('scroll', hideTip, { passive: true });
 
 // ---------------------------------------------------------------------------
 // File input & drag and drop

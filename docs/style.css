@@ -331,6 +331,26 @@ audio { width: 100%; margin-top: 14px; display: block; }
 .info::before { content: 'i'; }
 .info:hover, .info:focus { color: var(--ink); border-color: var(--ink-2); }
 
+/* A phone sends no taps to a disabled control, so there the tap falls through to
+   the field, which shows why it is disabled. With a mouse the control keeps its
+   pointer, for the native hover tooltip. */
+@media (hover: none) {
+  .field.off select:disabled { pointer-events: none; }
+}
+
+/* The same text a title shows on hover, for screens that cannot hover. */
+.tip {
+  position: fixed; z-index: 60;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 10px 12px;
+  background: #232322; color: var(--ink);
+  border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  font-size: 13px; line-height: 1.45;
+  /* The Channels explanation joins two paragraphs with a blank line. */
+  white-space: pre-line;
+}
+
 /* ---------- how it works ---------- */
 
 .how-list { margin: 0; padding-left: 22px; color: var(--ink-2); }

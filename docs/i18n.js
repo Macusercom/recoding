@@ -38,7 +38,7 @@ const EN = {
 
   // ---- settings ----
   settingsTitle: 'Output settings',
-  settingsHint: 'Options that the chosen codec cannot do are disabled — hover one to see why.',
+  settingsHint: 'Options that the chosen codec cannot do are disabled — hover or tap one to see why.',
   fieldFormat: 'Format',
   fieldRateMode: 'Bitrate mode',
   fieldBitrate: 'Bitrate',
@@ -187,7 +187,7 @@ const DE = {
   chooseOther: 'Andere Datei wählen',
 
   settingsTitle: 'Ausgabe-Einstellungen',
-  settingsHint: 'Optionen, die der gewählte Codec nicht kann, sind deaktiviert — fahre darüber, um zu sehen warum.',
+  settingsHint: 'Optionen, die der gewählte Codec nicht kann, sind deaktiviert — fahre darüber oder tippe darauf, um zu sehen warum.',
   fieldFormat: 'Format',
   fieldRateMode: 'Bitratenmodus',
   fieldBitrate: 'Bitrate',
