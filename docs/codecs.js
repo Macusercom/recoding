@@ -61,7 +61,12 @@ const AAC_WINDOW = {
   22050: [[16, 96],   [16, 112]],
   24000: [[16, 96],   [16, 112]],
   32000: [[16, 128],  [16, 160]],
-  44100: [[16, 192],  [24, 224]],
+  // The one deliberate exception to the rule above. At 44.1 kHz stereo the steps
+  // past 224 are not delivered in full — 320 comes out near 249 on music and 224
+  // on noise — but on music each one still buys real bits (+13, +18, +21 kbps
+  // over 224), and every result shows the bitrate it actually got, so the gap is
+  // visible rather than silent.
+  44100: [[16, 192],  [24, 320]],
   48000: [[16, 192],  [24, 256]],
   // 64 kHz mono is the one row that is not simply clamped at the top: above
   // 224 the encoder *overshoots* instead (256 came back as 294), so the usable

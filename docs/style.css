@@ -280,6 +280,9 @@ audio { width: 100%; margin-top: 14px; display: block; }
   font-variant-numeric: tabular-nums;
 }
 .chip.size { border-color: rgba(57, 135, 229, 0.4); color: var(--ink); }
+.chip.actual { color: var(--ink); cursor: help; }
+/* The encoder did not hit what was set. Not an error — worth seeing, though. */
+.chip.actual.off { border-color: rgba(250, 178, 25, 0.5); color: var(--warning); }
 
 .result-notes { margin: 10px 0 0; }
 .result-note { margin: 0; color: var(--warning); font-size: 12px; }

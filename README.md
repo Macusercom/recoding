@@ -21,7 +21,7 @@ A privacy-first web app that converts audio to MP3, AAC, Opus, FLAC, ALAC, WAV o
 - Drag & drop an audio file anywhere on the page, or click to pick one
 - Reads the real format out of the file — codec, sample rate, channels, bit depth, bitrate and duration — rather than trusting the extension
 - **MP3** (libmp3lame): CBR, ABR or VBR (V0–V9), 8–320 kbps, 8–48 kHz, joint stereo switch, bit reservoir
-- **AAC-LC**: 8–320 kbps, 7.35–96 kHz, forced M/S stereo, two-loop or fast coder — the offered range narrows to what FFmpeg's AAC encoder really delivers at the chosen rate and channel count
+- **AAC-LC**: 8–320 kbps, 7.35–96 kHz, forced M/S stereo, two-loop or fast coder — the offered range narrows to what FFmpeg's AAC encoder really delivers at the chosen rate and channel count. At 44.1 kHz stereo the steps above 224 kbps stay available even though they arrive short (320 comes out near 250 on music)
 - **Opus** (libopus): 6–512 kbps, VBR / constrained VBR / CBR, speech or music tuning, encoding effort 0–10
 - **FLAC**: lossless, compression level 0–12, 16- or 24-bit, mid/side or independent stereo
 - **ALAC**: lossless, 16- or 24-bit, in an MP4 container Apple software plays natively
@@ -30,7 +30,7 @@ A privacy-first web app that converts audio to MP3, AAC, Opus, FLAC, ALAC, WAV o
 - The bitrate is the rate of the whole file, not of one channel, so mono at a given number gives each channel twice what stereo does — the field says so
 - Options a codec genuinely cannot do are disabled and say why, instead of silently doing something else
 - Convert the same file over and over: results accumulate, nothing is overwritten
-- Every result shows the exact settings it was made with, its size against the source, a player and a download link
+- Every result shows the exact settings it was made with, the bitrate it actually came out at, its size against the source, a player and a download link — the actual bitrate is highlighted when the encoder missed a set target by more than 6 %
 - The exact FFmpeg command is shown per result, so nothing about the conversion is a black box
 - Queue several conversions while one is running; remove one result or clear them all
 - Formats the browser cannot play fall back to a download link and a note, never a dead player — including a stream whose container the browser accepts but whose bit depth it cannot decode

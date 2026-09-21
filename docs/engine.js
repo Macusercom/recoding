@@ -32,6 +32,11 @@ let activeProgress = null;
 // normalizeProgress: until it has, a report at or past the finish line is not
 // believable.
 let sawRealProgress = false;
+// The encoded output's own running time, from ffmpeg's progress reports (µs).
+// This, not the source probe, is what the actual bitrate is computed from: a VBR
+// MP3 without a Xing header only has an estimated duration — 88.9 s for a file
+// that plays for 90 — and dividing by that would misstate the result.
+let outputMicros = 0;
 
 // ffmpeg reports progress as elapsed time divided by the input's duration. On a
 // large file — mounted through WORKERFS and read lazily — the first report can
@@ -76,8 +81,9 @@ export function load(onStatus) {
       logLines.push(message);
       if (logLines.length > LOG_LIMIT) logLines.shift();
     });
-    instance.on('progress', ({ progress }) => {
+    instance.on('progress', ({ progress, time }) => {
       if (!activeProgress) return;
+      if (Number.isFinite(time) && time > outputMicros) outputMicros = time;
       const value = normalizeProgress(progress, sawRealProgress);
       if (value === null) return;
       if (progress <= 1) sawRealProgress = true;
@@ -230,6 +236,7 @@ export async function convert(args, outputPath, onProgress) {
   logLines = [];
   activeProgress = onProgress || null;
   sawRealProgress = false;
+  outputMicros = 0;
 
   let code;
   try {
@@ -259,8 +266,8 @@ export async function convert(args, outputPath, onProgress) {
   await instance.deleteFile(outputPath).catch(() => {});
 
   // readFile hands back a view into the heap; copy it out before the next run
-  // grows or reuses that memory.
-  return { data: new Uint8Array(data), log };
+  // grows or reuses that memory. `seconds` is null when ffmpeg reported no time.
+  return { data: new Uint8Array(data), log, seconds: outputMicros ? outputMicros / 1e6 : null };
 }
 
 export function workDir() {

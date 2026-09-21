@@ -683,9 +683,9 @@ async function drain() {
       const { args, resolved } = buildArgs(opts, src.info, engine.sourcePath(), outPath);
 
       showConverting(0);
-      const { data } = await engine.convert(args, outPath, (frac) => showConverting(frac));
+      const { data, seconds } = await engine.convert(args, outPath, (frac) => showConverting(frac));
 
-      addResult({ job, resolved, args, data });
+      addResult({ job, resolved, args, data, seconds });
       clearStatus();
     } catch (e) {
       setError(msg('convertError', [e?.message || String(e)]));
@@ -705,16 +705,21 @@ async function drain() {
 
 let results = [];
 
-function addResult({ job, resolved, args, data }) {
+function addResult({ job, resolved, args, data, seconds }) {
   const { source: src, opts } = job;
   const codec = resolved.codec;
   const blob = new Blob([data], { type: codec.mime });
+  // What the file really averages: its size over its own playing time. The
+  // source's probed duration is only a fallback, because for some formats it is
+  // an estimate.
+  const playing = seconds || src.info?.duration || 0;
   results.unshift({
     id: nextId++,
     name: outputName(src.name, opts, resolved),
     sourceName: src.name,
     sourceSize: src.size,
     size: blob.size,
+    actualKbps: playing ? (blob.size * 8) / playing / 1000 : null,
     blob,
     url: URL.createObjectURL(blob),
     codec,
@@ -725,6 +730,13 @@ function addResult({ job, resolved, args, data }) {
     command: ['ffmpeg', '-nostdin', '-y', ...args].map(quoteArg).join(' '),
   });
   renderResults();
+}
+
+/** The bitrate a result was asked to hit, or null where none was promised. */
+function targetKbps(r) {
+  const { bitrate, rateMode } = r.resolved;
+  if (!bitrate || rateMode === 'vbr' || rateMode === 'vbr_opus') return null;
+  return bitrate;
 }
 
 const quoteArg = (a) => (/[\s"']/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a);
@@ -824,6 +836,24 @@ function renderResults() {
       chip.textContent = text;
       chips.append(chip);
     }
+    // --- what the file actually came out at, next to what was set ---
+    if (r.actualKbps) {
+      const kbps = Math.round(r.actualKbps);
+      const chip = document.createElement('span');
+      chip.className = 'chip actual';
+      chip.textContent = msg('actualBitrate', [kbps]);
+      const target = targetKbps(r);
+      // Variable modes have no promise to break, so only a set target is held
+      // to the same 6 % the bitrate tables use.
+      if (target && Math.abs(r.actualKbps - target) / target > 0.06) {
+        chip.classList.add('off');
+        chip.title = msg('actualBitrateOff', [target, kbps]);
+      } else {
+        chip.title = msg('actualBitrateInfo');
+      }
+      chips.append(chip);
+    }
+
     const size = document.createElement('span');
     size.className = 'chip size';
     const pct = Math.round((r.size / r.sourceSize) * 100);
