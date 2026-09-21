@@ -79,6 +79,10 @@ function shortName(name, max = 40) {
 // ---------------------------------------------------------------------------
 
 function setStatus(text, fraction) {
+  if (engine.DEBUG) {
+    console.log(`[recoding] ${performance.now().toFixed(0)}ms setStatus "${text}" fraction=${fraction} `
+      + `inlineWidth=${$('progress-fill').style.width} computed=${getComputedStyle($('progress-fill')).width}`);
+  }
   const box = $('status');
   box.hidden = false;
   box.classList.remove('error');
@@ -132,6 +136,7 @@ function resetProgress() {
 }
 
 function clearStatus() {
+  if (engine.DEBUG) console.log(`[recoding] ${performance.now().toFixed(0)}ms clearStatus`);
   $('status').hidden = true;
   $('status').classList.remove('error');
   // Both the bar and the words are stale the moment a run ends. Leaving either

@@ -13,6 +13,9 @@ import { fetchFile } from './vendor/util/index.js';
 const CORE_URL = new URL('vendor/core/ffmpeg-core.js', import.meta.url).href;
 const WASM_URL = new URL('vendor/core/ffmpeg-core.wasm', import.meta.url).href;
 
+// Temporary: add ?debug to the URL to trace progress and status in the console.
+export const DEBUG = typeof location !== 'undefined' && location.search.includes('debug');
+
 const MOUNT_POINT = '/src';
 const WORK_DIR = '/work';
 
@@ -50,6 +53,7 @@ export function load(onStatus) {
       if (logLines.length > LOG_LIMIT) logLines.shift();
     });
     instance.on('progress', ({ progress }) => {
+      if (DEBUG) console.log(`[recoding] ${performance.now().toFixed(0)}ms raw progress=${progress} active=${!!activeProgress}`);
       if (activeProgress && Number.isFinite(progress)) {
         // ffmpeg overshoots slightly at the tail; clamping keeps the bar sane.
         activeProgress(Math.max(0, Math.min(1, progress)));
