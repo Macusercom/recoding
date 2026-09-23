@@ -592,11 +592,18 @@ function renderFields() {
     // resolved channel count, so resolve first and offer only what will work.
     const r = resolve(settings, info);
     const list = codec.bitrates(r.sampleRate, r.channels);
+    // A bitrate the new sample rate or channel count no longer allows becomes
+    // the value the form is about to show. Merely displaying the replacement and
+    // leaving the old number in the settings made the finished file complain
+    // about a figure that had long since left the screen: pick 8 kbps, change
+    // the sample rate, and the result said "8 kbps is out of range here — used
+    // 32 kbps instead" while the form had been reading 32 all along.
+    if (!list.includes(settings.bitrate)) update('bitrate', r.bitrate);
     grid.append(field(
       msg('fieldBitrate'),
       select(
         list.map((b) => ({ value: b, label: `${b} kbps` })),
-        list.includes(settings.bitrate) ? settings.bitrate : r.bitrate,
+        settings.bitrate,
         (v) => update('bitrate', Number(v)),
       ),
       { info: msg('infoBitrate') },
@@ -641,6 +648,11 @@ function renderFields() {
   }
 
   // --- channels ---
+  // Same again, and here it changed the file rather than just the wording:
+  // joint stereo on a codec without that switch showed "Keep original" while
+  // the setting still said joint — which forces two channels, so a mono source
+  // came out stereo against what the form promised.
+  if (settings.channels === 'joint' && !codec.joint) update('channels', KEEP);
   const channelControl = select(
     [
       { value: KEEP, label: msg('keep') },
@@ -648,7 +660,7 @@ function renderFields() {
       { value: 'stereo', label: msg('chStereo') },
       { value: 'joint', label: msg('chJoint'), disabled: !codec.joint },
     ],
-    codec.joint || settings.channels !== 'joint' ? settings.channels : KEEP,
+    settings.channels,
     (v) => update('channels', v),
   );
   // Codecs without a joint stereo switch keep their own explanation, appended to
